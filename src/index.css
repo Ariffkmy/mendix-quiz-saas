@@ -1,0 +1,125 @@
+@import 'tailwindcss';
+
+/* Mendix-inspired blue/white palette. */
+@theme {
+  --color-brand-50: #eff6ff;
+  --color-brand-100: #dbeafe;
+  --color-brand-200: #bfdbfe;
+  --color-brand-300: #93c5fd;
+  --color-brand-400: #60a5fa;
+  --color-brand-500: #2f6feb;
+  --color-brand-600: #1a56db;
+  --color-brand-700: #1544ac;
+  --color-brand-800: #14387f;
+  --color-brand-900: #0f2a5e;
+
+  --color-ink-500: #64748b;
+  --color-ink-700: #334155;
+  --color-ink-900: #0f172a;
+
+  --font-sans: 'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto,
+    'Helvetica Neue', Arial, sans-serif;
+}
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply bg-slate-50 text-ink-900 antialiased;
+    font-family: var(--font-sans);
+  }
+
+  /* Visible focus for keyboard users — important on the exam screen, which is
+     fully keyboard navigable. */
+  :focus-visible {
+    @apply outline-2 outline-offset-2 outline-brand-500;
+  }
+}
+
+/* Declared with @utility (not @layer components) so they can be composed with
+   @apply and overridden by utilities at the call site, e.g. `btn-primary w-full`. */
+@utility btn {
+  @apply inline-flex items-center justify-center gap-2 rounded-lg px-5 py-2.5 text-sm
+         font-semibold transition disabled:cursor-not-allowed disabled:opacity-50;
+}
+
+@utility btn-primary {
+  @apply btn bg-brand-600 text-white shadow-sm hover:bg-brand-700 active:bg-brand-800;
+}
+
+@utility btn-secondary {
+  @apply btn border border-slate-300 bg-white text-ink-700 hover:bg-slate-50;
+}
+
+@utility btn-ghost {
+  @apply btn text-ink-700 hover:bg-slate-100;
+}
+
+@utility card {
+  @apply rounded-2xl border border-slate-200 bg-white shadow-sm;
+}
+
+@utility input {
+  @apply w-full rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-base
+         text-ink-900 placeholder:text-slate-400 focus:border-brand-500
+         focus:ring-2 focus:ring-brand-200 focus:outline-none;
+}
+
+@utility label {
+  @apply mb-1.5 block text-sm font-medium text-ink-700;
+}
+
+/* Rendered study material (knowledge base). */
+.prose-kb h1 {
+  @apply mt-8 mb-3 text-2xl font-bold text-ink-900;
+}
+.prose-kb h2 {
+  @apply mt-7 mb-2 border-b border-slate-200 pb-1 text-xl font-bold text-ink-900;
+}
+.prose-kb h3 {
+  @apply mt-5 mb-2 text-lg font-semibold text-ink-900;
+}
+.prose-kb h4 {
+  @apply mt-4 mb-1.5 text-base font-semibold text-ink-700;
+}
+.prose-kb p {
+  @apply my-3 leading-relaxed text-ink-700;
+}
+.prose-kb ul {
+  @apply my-3 list-disc space-y-1.5 pl-6 text-ink-700;
+}
+.prose-kb ol {
+  @apply my-3 list-decimal space-y-1.5 pl-6 text-ink-700;
+}
+.prose-kb code {
+  @apply rounded bg-slate-100 px-1.5 py-0.5 font-mono text-[0.85em] text-brand-700;
+}
+.prose-kb pre {
+  @apply my-4 overflow-x-auto rounded-xl bg-ink-900 p-4 text-sm text-slate-100;
+}
+.prose-kb pre code {
+  @apply bg-transparent p-0 text-inherit;
+}
+.prose-kb blockquote {
+  @apply my-4 border-l-4 border-brand-300 bg-brand-50 py-2 pl-4 text-ink-700 italic;
+}
+.prose-kb table {
+  @apply my-4 w-full border-collapse text-sm;
+}
+.prose-kb th {
+  @apply border border-slate-300 bg-slate-100 px-3 py-2 text-left font-semibold;
+}
+.prose-kb td {
+  @apply border border-slate-200 px-3 py-2 align-top text-ink-700;
+}
+.prose-kb a {
+  @apply text-brand-600 underline underline-offset-2 hover:text-brand-700;
+}
+.prose-kb hr {
+  @apply my-6 border-slate-200;
+}
+.prose-kb strong {
+  @apply font-semibold text-ink-900;
+}
