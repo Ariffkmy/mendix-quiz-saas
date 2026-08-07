@@ -133,7 +133,7 @@ function DotGrid({ className = '', dotClass = 'fill-white/25' }) {
 }
 
 /**
- * Stylised mock of the exam screen. Used twice (dark hero, magenta feature
+ * Stylised mock of the exam screen. Used twice (dark hero, blue feature
  * band) with different surface treatments.
  */
 function QuizMockup({ tone = 'dark' }) {

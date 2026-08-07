@@ -13,17 +13,17 @@
   --color-brand-800: #14387f;
   --color-brand-900: #0f2a5e;
 
-  /* Vibrant magenta accent — the primary marketing colour. */
-  --color-accent-50: #fff0f8;
-  --color-accent-100: #ffe0f0;
-  --color-accent-200: #ffc2e2;
-  --color-accent-300: #ff8ac7;
-  --color-accent-400: #ff4dab;
-  --color-accent-500: #e6007e;
-  --color-accent-600: #c70069;
-  --color-accent-700: #a30057;
-  --color-accent-800: #7d0043;
-  --color-accent-900: #5a0031;
+  /* Mendix blue accent — the primary marketing colour, built around #1a73e8. */
+  --color-accent-50: #eef4fe;
+  --color-accent-100: #d8e6fd;
+  --color-accent-200: #b8d2fb;
+  --color-accent-300: #85b4f8;
+  --color-accent-400: #4a90f0;
+  --color-accent-500: #1a73e8;
+  --color-accent-600: #155ec1;
+  --color-accent-700: #114b9b;
+  --color-accent-800: #0e3c7c;
+  --color-accent-900: #0b2e5e;
 
   --color-ink-500: #64748b;
   --color-ink-700: #334155;
