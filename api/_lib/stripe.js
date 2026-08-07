@@ -39,9 +39,9 @@ export function buildLineItem() {
   return {
     quantity: 1,
     price_data: {
-      currency: (process.env.PRICE_CURRENCY ?? 'myr').toLowerCase(),
-      // Minor units — 2900 = RM 29.00
-      unit_amount: Number(process.env.PRICE_AMOUNT ?? 2900),
+      currency: (process.env.PRICE_CURRENCY ?? 'usd').toLowerCase(),
+      // Minor units — 900 = $9.00
+      unit_amount: Number(process.env.PRICE_AMOUNT ?? 900),
       product_data: {
         name: 'Mendix Advanced — Exam Simulator',
         description:
