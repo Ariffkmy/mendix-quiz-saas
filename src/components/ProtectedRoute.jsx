@@ -16,13 +16,22 @@ function Gate({ title, body, actions }) {
 /**
  * Route guard.
  *
- * This is a UX gate, not the security boundary — the real enforcement is the
- * row-level security in Supabase, which will not return exam or purchase data
- * to a user who has not paid even if they reach the route directly.
+ * Signing in is enough for /dashboard and /quiz — a free account is a real
+ * account. `requirePaid` covers the routes that reveal a score (/results,
+ * /study); free users are sent to their dashboard rather than shown a wall,
+ * since that is where the upgrade lives.
+ *
+ * This is a UX gate, not the security boundary. The real enforcement is the
+ * row-level security in Supabase, which will not return an attempt row to a free
+ * account even if it reaches /results directly.
  */
-export default function ProtectedRoute({ children, requirePurchase = false, requireAdmin = false }) {
-  const { user, loading, entitlementLoading, hasPurchased, isAdmin, isSupabaseConfigured } =
-    useAuth();
+export default function ProtectedRoute({
+  children,
+  requirePaid = false,
+  requireAdmin = false,
+  redirectTo = null,
+}) {
+  const { user, loading, entitlementReady, isPaid, isAdmin, isSupabaseConfigured } = useAuth();
   const location = useLocation();
 
   if (!isSupabaseConfigured) {
@@ -39,7 +48,9 @@ export default function ProtectedRoute({ children, requirePurchase = false, requ
     );
   }
 
-  if (loading || entitlementLoading) {
+  // Only the first resolution blocks. Later refreshes (after a submission, after
+  // a payment) update in place rather than unmounting the page underneath.
+  if (loading || !entitlementReady) {
     return (
       <div className="flex items-center justify-center py-24">
         <Spinner label="Checking your access…" />
@@ -57,26 +68,30 @@ export default function ProtectedRoute({ children, requirePurchase = false, requ
         title="Admins only"
         body="This dashboard is limited to accounts listed in the admins table."
         actions={
-          <Link to="/" className="btn-primary">
-            Back to home
+          <Link to="/dashboard" className="btn-primary">
+            Back to dashboard
           </Link>
         }
       />
     );
   }
 
-  if (requirePurchase && !hasPurchased && !isAdmin) {
+  if (requirePaid && !isPaid) {
+    if (redirectTo) {
+      return <Navigate to={redirectTo} replace state={{ upgradeRequired: location.pathname }} />;
+    }
+
     return (
       <Gate
-        title="You don't have access yet"
-        body="We couldn't find a completed purchase for this email address. Buy access once and the exam unlocks for good."
+        title="That's a full-access feature"
+        body="Your free attempt does not include scores, explanations or the study guides. Unlock everything with a single payment."
         actions={
           <>
             <Link to="/checkout" className="btn-primary">
-              Get access
+              Get full access
             </Link>
-            <Link to="/" className="btn-secondary">
-              Back to home
+            <Link to="/dashboard" className="btn-secondary">
+              Back to dashboard
             </Link>
           </>
         }

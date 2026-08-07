@@ -1,15 +1,17 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 
 import ProgressBar from '../components/ProgressBar.jsx';
 import QuestionCard from '../components/QuestionCard.jsx';
 import QuestionNav from '../components/QuestionNav.jsx';
 import Timer from '../components/Timer.jsx';
+import { FREE_ATTEMPT_LIMIT, PAID_ONLY_FEATURES, PRODUCT } from '../config';
 import { useAuth } from '../context/AuthContext.jsx';
 import { EXAM_MINUTES, LETTERS, PASS_THRESHOLD, QUESTIONS, TOPICS } from '../data/questions';
 import {
   clearInProgress,
   loadInProgress,
+  recordAttempt,
   saveInProgress,
   saveLastResult,
 } from '../lib/attemptStorage';
@@ -20,7 +22,7 @@ const EXAM_MS = EXAM_MINUTES * 60 * 1000;
 
 export default function Quiz() {
   const navigate = useNavigate();
-  const { user, email } = useAuth();
+  const { user, email, isPaid, attemptsRemaining, canStartExam, refreshEntitlement } = useAuth();
 
   // `null` attempt = the pre-exam briefing screen.
   const [attempt, setAttempt] = useState(() => loadInProgress());
@@ -28,6 +30,8 @@ export default function Quiz() {
   const [confirming, setConfirming] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState('');
+  // Free tier lands here after submitting instead of on /results.
+  const [blindSubmitted, setBlindSubmitted] = useState(false);
   const submittedRef = useRef(false);
 
   const answers = attempt?.answers ?? {};
@@ -90,10 +94,13 @@ export default function Quiz() {
         autoSubmitted: reason === 'timeout',
       };
 
-      saveLastResult(record);
+      // A free attempt is blind: nothing about the score is cached locally, so
+      // there is no copy for /results to fall back on either.
+      if (isPaid) saveLastResult(record);
 
       // Persist server-side too. A failed write must not cost the candidate
       // their result, so it only surfaces as a warning on the results page.
+      let writeFailed = false;
       if (isSupabaseConfigured && user) {
         const { error } = await supabase.from('quiz_attempts').insert({
           user_id: user.id,
@@ -109,14 +116,31 @@ export default function Quiz() {
           submitted_at: record.submittedAt,
           auto_submitted: record.autoSubmitted,
         });
-        if (error) setSubmitError(error.message);
+
+        if (error) {
+          writeFailed = true;
+          setSubmitError(error.message);
+        }
       }
 
+      if (!writeFailed) recordAttempt(user?.id);
       clearInProgress();
+
+      // Pick up the server's new attempts_used so the dashboard and the guard
+      // above agree about what is left.
+      await refreshEntitlement();
+
       setSubmitting(false);
-      navigate('/results', { replace: true, state: { justSubmitted: true } });
+
+      if (isPaid) {
+        navigate('/results', { replace: true, state: { justSubmitted: true } });
+      } else {
+        setBlindSubmitted(true);
+        setConfirming(false);
+        window.scrollTo({ top: 0 });
+      }
     },
-    [attempt, user, email, navigate]
+    [attempt, user, email, isPaid, navigate, refreshEntitlement]
   );
 
   const handleExpire = useCallback(() => {
@@ -125,7 +149,7 @@ export default function Quiz() {
 
   // Keyboard shortcuts: arrows to navigate, 1–4 or A–D to answer.
   useEffect(() => {
-    if (!attempt || confirming) return;
+    if (!attempt || confirming || blindSubmitted) return;
 
     const onKeyDown = (e) => {
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
@@ -143,11 +167,11 @@ export default function Quiz() {
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [attempt, confirming, current, goTo]);
+  }, [attempt, confirming, blindSubmitted, current, goTo]);
 
   // Warn before an accidental tab close mid-exam.
   useEffect(() => {
-    if (!attempt || submittedRef.current) return;
+    if (!attempt || blindSubmitted || submittedRef.current) return;
 
     const onBeforeUnload = (e) => {
       e.preventDefault();
@@ -156,7 +180,88 @@ export default function Quiz() {
 
     window.addEventListener('beforeunload', onBeforeUnload);
     return () => window.removeEventListener('beforeunload', onBeforeUnload);
-  }, [attempt]);
+  }, [attempt, blindSubmitted]);
+
+  /* -------------------- Free tier: exam submitted, no score ---------------- */
+
+  if (blindSubmitted) {
+    return (
+      <div className="mx-auto max-w-xl px-4 py-16 text-center sm:px-6 lg:py-20">
+        <span className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-emerald-50 text-3xl">
+          ✅
+        </span>
+
+        <h1 className="mt-6 text-3xl font-bold tracking-tight text-ink-900">Exam submitted</h1>
+        <p className="mt-3 leading-relaxed text-ink-500">
+          Your answers are recorded against your account. That was your free attempt, so the score
+          and the review stay sealed — full access opens them, along with unlimited retakes.
+        </p>
+
+        {submitError && (
+          <p role="alert" className="mt-5 rounded-xl bg-rose-50 p-4 text-sm text-rose-700">
+            We couldn't save your attempt to the server: {submitError}
+          </p>
+        )}
+
+        <div className="card mt-8 p-6 text-left sm:p-7">
+          <div className="flex items-baseline justify-between gap-4">
+            <h2 className="font-semibold text-ink-900">Unlock your result</h2>
+            <span className="text-xl font-extrabold tracking-tight whitespace-nowrap text-ink-900">
+              {PRODUCT.priceLabel}
+            </span>
+          </div>
+          <p className="mt-1 text-sm text-ink-500">{PRODUCT.currencyNote}</p>
+
+          <ul className="mt-5 space-y-2.5 text-sm">
+            {PAID_ONLY_FEATURES.map((item) => (
+              <li key={item} className="flex items-start gap-2.5 text-ink-700">
+                <span className="mt-0.5 flex-none font-bold text-emerald-500">✓</span>
+                {item}
+              </li>
+            ))}
+          </ul>
+
+          <Link to="/checkout" className="btn-primary mt-6 w-full py-3">
+            Get full access
+          </Link>
+        </div>
+
+        <Link to="/dashboard" className="btn-secondary mt-6">
+          Back to dashboard
+        </Link>
+      </div>
+    );
+  }
+
+  /* ------------------- Free tier: attempt already spent -------------------- */
+
+  if (!attempt && !canStartExam) {
+    return (
+      <div className="mx-auto max-w-xl px-4 py-16 text-center sm:px-6 lg:py-20">
+        <span className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-amber-50 text-3xl">
+          🔒
+        </span>
+
+        <h1 className="mt-6 text-3xl font-bold tracking-tight text-ink-900">
+          You've used your free attempt
+        </h1>
+        <p className="mt-3 leading-relaxed text-ink-500">
+          The free tier includes {FREE_ATTEMPT_LIMIT} sitting
+          {FREE_ATTEMPT_LIMIT === 1 ? '' : 's'}, and yours is on record. Upgrade once for unlimited
+          retakes — plus the score and the full review of the attempt you already sat.
+        </p>
+
+        <div className="mt-8 flex flex-wrap justify-center gap-3">
+          <Link to="/checkout" className="btn-primary px-6 py-3 text-base">
+            Get full access · {PRODUCT.priceLabel}
+          </Link>
+          <Link to="/dashboard" className="btn-secondary px-6 py-3 text-base">
+            Back to dashboard
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   /* ---------------------------- Briefing screen ---------------------------- */
 
@@ -182,6 +287,22 @@ export default function Quiz() {
             </div>
           ))}
         </dl>
+
+        {!isPaid && (
+          <div className="mt-6 rounded-xl border border-amber-200 bg-amber-50 p-5">
+            <p className="text-sm font-bold text-amber-900">
+              This is your free attempt — {attemptsRemaining} of {FREE_ATTEMPT_LIMIT} remaining
+            </p>
+            <p className="mt-1.5 text-sm leading-relaxed text-amber-800">
+              Submitting uses it up, and the free tier does not show your score, your pass/fail
+              verdict or the answer explanations. If you want the result,{' '}
+              <Link to="/checkout" className="font-semibold underline underline-offset-2">
+                get full access
+              </Link>{' '}
+              — you can do it after you sit the exam and your attempt will still be there.
+            </p>
+          </div>
+        )}
 
         <div className="card mt-6 p-6">
           <h2 className="font-semibold text-ink-900">How it works</h2>
@@ -350,6 +471,12 @@ export default function Quiz() {
               <p className="mt-3 rounded-lg bg-amber-50 p-3 text-sm text-amber-800">
                 You still have {flagged.size} question{flagged.size === 1 ? '' : 's'} flagged for
                 review.
+              </p>
+            )}
+
+            {!isPaid && (
+              <p className="mt-3 rounded-lg bg-slate-100 p-3 text-sm text-ink-700">
+                This uses your free attempt. You'll get a confirmation, not a score.
               </p>
             )}
 

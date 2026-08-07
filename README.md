@@ -11,16 +11,35 @@ React Router 7 · Vercel serverless functions.
 
 ## Features
 
-| Route       | What it does                                                                     |
-| ----------- | -------------------------------------------------------------------------------- |
-| `/`         | Landing page — hero, features, 8 modules, pricing card, testimonials, FAQ         |
-| `/checkout` | Email capture → Stripe Checkout (hosted redirect)                                 |
-| `/success`  | Verifies the payment, then emails a magic sign-in link                            |
-| `/login`    | Passwordless magic-link sign-in                                                   |
-| `/quiz`     | Timed exam — one question at a time, jump grid, flagging, autosave *(paid)*       |
-| `/results`  | Score, pass/fail, topic breakdown, missed-question review, attempt history *(paid)* |
-| `/study`    | All 8 knowledge-base modules, rendered *(paid)*                                   |
-| `/admin`    | Purchases, revenue, pass rates, recent attempts *(admin)*                         |
+### Two tiers
+
+|                          | Free                   | Full access (one-time payment) |
+| ------------------------ | ---------------------- | ------------------------------ |
+| Sign-up                  | Email + password       | Stripe Checkout                |
+| Exam attempts            | **1**                  | Unlimited                      |
+| Sees score / pass-fail   | **No**                 | Yes                            |
+| Topic breakdown & review | No                     | Yes                            |
+| Analytics dashboard      | No                     | Yes                            |
+| Study guides             | No                     | Yes                            |
+
+A free account sits the *whole* exam — same questions, same clock — and gets a
+confirmation instead of a result. Upgrading later unlocks the attempt already on
+record.
+
+### Routes
+
+| Route        | What it does                                                                        |
+| ------------ | ----------------------------------------------------------------------------------- |
+| `/`          | Landing page — hero with both CTAs, tier comparison, 8 modules, pricing, FAQ         |
+| `/register`  | Free sign-up: email + password, lands on the dashboard                              |
+| `/login`     | Magic-link sign-in (with an optional password path for registered accounts)          |
+| `/checkout`  | Email capture → Stripe Checkout (hosted redirect)                                   |
+| `/success`   | Verifies the payment, then emails a magic sign-in link                              |
+| `/dashboard` | The hub. Free: attempts remaining + upgrade. Paid: attempts, averages, pass rate, score trend, per-module performance, recent attempts *(any account)* |
+| `/quiz`      | Timed exam — one question at a time, jump grid, flagging, autosave *(any account, subject to the attempt limit)* |
+| `/results`   | Score, pass/fail, topic breakdown, missed-question review, attempt history *(paid — free accounts are redirected to `/dashboard`)* |
+| `/study`     | All 8 knowledge-base modules, rendered *(paid)*                                     |
+| `/admin`     | Purchases, revenue, pass rates, recent attempts *(admin)*                           |
 
 - **16 questions across 8 modules**, each with a citation-backed explanation.
 - **30-minute timer** on an absolute deadline — refreshing the page doesn't buy extra time.
@@ -44,7 +63,12 @@ cp .env.example .env
 Create a project at [supabase.com](https://supabase.com), then:
 
 1. Run **`supabase/migrations/0001_init.sql`** in the SQL Editor (or `supabase db push`).
-   This creates `purchases`, `quiz_attempts` and `admins`, plus all RLS policies.
+   This creates `user_profiles`, `purchases`, `quiz_attempts` and `admins`, plus all RLS
+   policies. Every statement is idempotent, so re-run it over an existing database to pick
+   up the tier and attempt-tracking additions — it backfills profiles for accounts that
+   already exist and reconciles `attempts_used` with attempts already on record.
+   Under **Authentication → Providers**, leave **Email** enabled; if "Confirm email" is on,
+   `/register` tells the user to check their inbox instead of dropping them on the dashboard.
 2. Copy **Settings → API** values into `.env`:
    - `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` (browser)
    - `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` (server — never expose this one)
@@ -105,6 +129,12 @@ Any host works as long as it can run the three Node functions in `/api`.
 
 ## How access control works
 
+`public.user_profiles` holds one row per account with a `tier` (`free` | `paid`) and an
+`attempts_used` counter. Neither column has a client write policy — `tier` is set by triggers
+on `auth.users` and `purchases`, and `attempts_used` is incremented by an `AFTER INSERT`
+trigger on `quiz_attempts`. The client calls `public.ensure_profile()` on sign-in, which
+creates the row if missing and promotes it if a payment landed while the user was away.
+
 Payment happens *before* the account exists, so entitlement is keyed on **email**:
 
 1. `/api/create-checkout-session` writes a `pending` purchase row and opens Stripe Checkout.
@@ -116,11 +146,20 @@ Payment happens *before* the account exists, so entitlement is keyed on **email*
 
 The gate is enforced **in the database, not the UI**:
 
-- Clients have **no insert/update policy** on `purchases` — only the service role writes it, so a
-  user cannot grant themselves access.
-- `quiz_attempts` inserts require `public.has_purchased()` to pass.
+- Clients have **no insert/update policy** on `purchases` or `user_profiles` — only the service
+  role and triggers write them, so a user cannot grant themselves the paid tier.
+- `quiz_attempts` **inserts** require `public.can_attempt()`: unlimited when paid, otherwise
+  fewer than `public.free_attempt_limit()` attempts used. Clearing `localStorage` buys nothing.
+- `quiz_attempts` **selects** require `public.is_paid()`. That is what makes the free attempt
+  blind — the score never leaves the database, and `Quiz.jsx` does not cache one locally for a
+  free account either.
 - `<ProtectedRoute>` is a UX convenience; bypassing it just yields empty queries.
 - A partial unique index enforces at most one `paid` purchase per email.
+
+One ordering detail worth knowing if you touch the triggers: Postgres evaluates an insert
+policy's `WITH CHECK` **after** `BEFORE ROW` triggers, so `attempts_used` is bumped in an
+`AFTER INSERT` trigger. Incrementing it in the `BEFORE` trigger would make `can_attempt()`
+see the bump and reject the very first free attempt.
 
 ---
 
@@ -134,12 +173,14 @@ api/                          Serverless functions (server-only secrets)
   verify-session.js           POST → confirm + fulfill on redirect
   stripe-webhook.js           POST → signature-verified fulfillment
 src/
-  components/                 Layout, ProtectedRoute, QuestionCard, Timer, …
-  context/AuthContext.jsx     Session + entitlement state
+  components/                 Layout, ProtectedRoute, QuestionCard, TopicBar, Timer, …
+  config.js                   Pricing copy, free-attempt limit, per-tier feature lists
+  context/AuthContext.jsx     Session + tier state (tier, attemptsRemaining, isPaid)
   data/questions.js           The 16-question bank
   data/knowledgebase/         8 module .md files + loader
   lib/                        supabase, api, scoring, markdown, storage
-  pages/                      Landing, Checkout, Success, Login, Quiz, Results, Study, Admin
+  pages/                      Landing, Register, Login, Checkout, Success, Dashboard,
+                              Quiz, Results, Study, Admin
 supabase/migrations/          Schema + RLS
 ```
 

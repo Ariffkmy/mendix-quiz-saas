@@ -9,7 +9,7 @@ import { createCheckoutSession } from '../lib/api';
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export default function Checkout() {
-  const { email: signedInEmail, hasPurchased } = useAuth();
+  const { email: signedInEmail, isPaid } = useAuth();
   const [searchParams] = useSearchParams();
   // The landing-page hero collects an email up front and passes it through.
   const [email, setEmail] = useState(signedInEmail ?? searchParams.get('email') ?? '');
@@ -38,15 +38,15 @@ export default function Checkout() {
     }
   };
 
-  if (hasPurchased) {
+  if (isPaid) {
     return (
       <div className="mx-auto max-w-xl px-4 py-20 text-center sm:px-6">
-        <h1 className="text-2xl font-bold text-ink-900">You already have access</h1>
+        <h1 className="text-2xl font-bold text-ink-900">You already have full access</h1>
         <p className="mt-3 text-ink-500">
-          This account has already purchased the exam simulator — no need to pay again.
+          This account already has unlimited attempts and full analytics — no need to pay again.
         </p>
-        <Link to="/quiz" className="btn-primary mt-7">
-          Go to the exam
+        <Link to="/dashboard" className="btn-primary mt-7">
+          Go to your dashboard
         </Link>
       </div>
     );
@@ -93,10 +93,13 @@ export default function Checkout() {
 
         {/* Email + pay */}
         <div>
-          <h1 className="text-3xl font-bold tracking-tight text-ink-900">Get your access</h1>
+          <h1 className="text-3xl font-bold tracking-tight text-ink-900">
+            {signedInEmail ? 'Upgrade to full access' : 'Get your access'}
+          </h1>
           <p className="mt-3 text-ink-500">
-            Enter the email you want your access tied to. After payment we email you a secure sign-in
-            link — no password to remember.
+            {signedInEmail
+              ? 'Paying with this email upgrades the account you are signed in to — your existing attempt and its result come with you.'
+              : 'Enter the email you want your access tied to. After payment we email you a secure sign-in link — no password to remember.'}
           </p>
 
           <form onSubmit={handleSubmit} className="card mt-7 p-6 sm:p-8" noValidate>

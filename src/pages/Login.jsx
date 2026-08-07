@@ -5,14 +5,23 @@ import { useAuth } from '../context/AuthContext.jsx';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
+/**
+ * Sign in.
+ *
+ * The magic link is the default path and works for every account, including the
+ * ones created at /register. Those accounts also have a password, so there is a
+ * toggle for people who would rather type it than wait for an email.
+ */
 export default function Login() {
-  const { user, signInWithEmail, isSupabaseConfigured } = useAuth();
+  const { user, signInWithEmail, signInWithPassword, isSupabaseConfigured } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
-  const from = location.state?.from ?? '/quiz';
+  const from = location.state?.from ?? '/dashboard';
 
+  const [mode, setMode] = useState('link'); // link | password
   const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [sent, setSent] = useState(false);
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -31,16 +40,31 @@ export default function Login() {
       setError('Enter a valid email address.');
       return;
     }
+    if (mode === 'password' && !password) {
+      setError('Enter your password.');
+      return;
+    }
 
     setSubmitting(true);
     try {
-      await signInWithEmail(trimmed, from);
-      setSent(true);
+      if (mode === 'password') {
+        await signInWithPassword(trimmed, password);
+        navigate(from, { replace: true });
+      } else {
+        await signInWithEmail(trimmed, from);
+        setSent(true);
+      }
     } catch (err) {
-      setError(err.message || 'Could not send the sign-in link.');
+      setError(err.message || 'Could not sign you in.');
     } finally {
       setSubmitting(false);
     }
+  };
+
+  const switchMode = (next) => {
+    setMode(next);
+    setError('');
+    setPassword('');
   };
 
   if (sent) {
@@ -54,11 +78,7 @@ export default function Login() {
           We sent a sign-in link to <strong className="text-ink-900">{email}</strong>. It expires in
           an hour.
         </p>
-        <button
-          type="button"
-          onClick={() => setSent(false)}
-          className="btn-secondary mt-7"
-        >
+        <button type="button" onClick={() => setSent(false)} className="btn-secondary mt-7">
           Use a different email
         </button>
       </div>
@@ -69,7 +89,9 @@ export default function Login() {
     <div className="mx-auto max-w-md px-4 py-16 sm:px-6 lg:py-24">
       <h1 className="text-3xl font-bold tracking-tight text-ink-900">Sign in</h1>
       <p className="mt-3 text-ink-500">
-        Use the email you paid with. We'll send a secure link — there's no password.
+        {mode === 'link'
+          ? "We'll email you a secure link — no password needed."
+          : 'Use the password you chose when you registered.'}
       </p>
 
       {!isSupabaseConfigured && (
@@ -97,6 +119,25 @@ export default function Login() {
           disabled={submitting || !isSupabaseConfigured}
         />
 
+        {mode === 'password' && (
+          <>
+            <label htmlFor="login-password" className="label mt-5">
+              Password
+            </label>
+            <input
+              id="login-password"
+              type="password"
+              autoComplete="current-password"
+              required
+              className="input"
+              placeholder="Your password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              disabled={submitting || !isSupabaseConfigured}
+            />
+          </>
+        )}
+
         {error && (
           <p id="login-error" role="alert" className="mt-2.5 text-sm text-rose-600">
             {error}
@@ -108,14 +149,29 @@ export default function Login() {
           className="btn-primary mt-6 w-full py-3 text-base"
           disabled={submitting || !isSupabaseConfigured}
         >
-          {submitting ? 'Sending link…' : 'Email me a sign-in link'}
+          {submitting
+            ? mode === 'password'
+              ? 'Signing in…'
+              : 'Sending link…'
+            : mode === 'password'
+              ? 'Sign in'
+              : 'Email me a sign-in link'}
+        </button>
+
+        <button
+          type="button"
+          onClick={() => switchMode(mode === 'link' ? 'password' : 'link')}
+          className="mt-4 w-full text-center text-sm font-medium text-brand-600 hover:text-brand-700"
+          disabled={submitting}
+        >
+          {mode === 'link' ? 'Use my password instead' : 'Email me a link instead'}
         </button>
       </form>
 
       <p className="mt-6 text-center text-sm text-ink-500">
-        Haven't bought access yet?{' '}
-        <Link to="/checkout" className="font-medium text-brand-600 hover:text-brand-700">
-          Get the exam simulator
+        No account yet?{' '}
+        <Link to="/register" className="font-medium text-brand-600 hover:text-brand-700">
+          Start practising free
         </Link>
         .
       </p>

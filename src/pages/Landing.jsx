@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 
-import { PRODUCT } from '../config';
+import { FREE_ATTEMPT_LIMIT, PRODUCT, TIER_FEATURES } from '../config';
 import { useAuth } from '../context/AuthContext.jsx';
 import { EXAM_MINUTES, PASS_THRESHOLD, QUESTIONS, TOPICS } from '../data/questions';
 
@@ -63,32 +63,61 @@ const STATS = [
   { emoji: '🎯', value: `${PASS_THRESHOLD}%`, label: 'Pass threshold' },
 ];
 
+/** The two-tier comparison rendered in the features section. */
+const TIERS = [
+  {
+    key: 'free',
+    name: 'Free',
+    price: '$0',
+    priceNote: 'No card required',
+    pitch: `Sit the real thing once. ${QUESTIONS.length} questions, ${EXAM_MINUTES} minutes, all ${TOPICS.length} modules.`,
+    features: TIER_FEATURES.free,
+    missing: ['No score', 'No pass/fail verdict', 'No answer explanations', 'No retakes'],
+    cta: { label: 'Start practising free', to: '/register', style: 'btn-pill-dark' },
+  },
+  {
+    key: 'paid',
+    name: 'Full access',
+    price: PRODUCT.priceLabel,
+    priceNote: 'One-time · lifetime access',
+    pitch: 'Unlimited attempts and every number behind them. Buy once, keep it forever.',
+    features: TIER_FEATURES.paid,
+    missing: [],
+    cta: { label: 'Get full access', to: '/checkout', style: 'btn-pill-accent' },
+    featured: true,
+  },
+];
+
 const PRICING_FEATURES = [
-  `Full access to all ${QUESTIONS.length} exam-style questions`,
+  `Unlimited attempts at all ${QUESTIONS.length} exam-style questions`,
   `All ${TOPICS.length} Advanced modules covered`,
   `${EXAM_MINUTES}-minute timed exam simulation`,
+  'Your score and pass/fail verdict on every attempt',
   'Detailed explanation for every single answer',
-  'Topic-by-topic score breakdown',
+  'Topic-by-topic breakdown and progress analytics',
   'Full knowledge base study guides included',
-  'Lifetime access · unlimited retakes',
 ];
 
 const FAQ = [
   {
-    q: 'How does it work?',
-    a: `You buy once, sign in with the email you paid with, and the simulator unlocks immediately. You sit a ${EXAM_MINUTES}-minute timed run of ${QUESTIONS.length} exam-style questions — one at a time, with a jump grid and a flag-for-review marker — and get a scored breakdown the moment you submit.`,
+    q: 'How does the free tier work?',
+    a: `Register with an email and a password — no card. You get ${FREE_ATTEMPT_LIMIT} full sitting: ${QUESTIONS.length} questions, ${EXAM_MINUTES} minutes on the clock, every module included. The one thing it does not include is the result — you submit and get a confirmation, not a score. It is there so you can feel the real exam pressure before deciding.`,
+  },
+  {
+    q: 'What does full access add?',
+    a: `Unlimited attempts, your score and pass/fail verdict, a module-by-module breakdown, every question you missed with the explanation, the written study guides, and a dashboard tracking all of it over time. If you upgrade after sitting the free exam, that attempt is still on record — its result unlocks with everything else.`,
   },
   {
     q: 'What topics are covered?',
-    a: `All ${TOPICS.length} modules of the Mendix Advanced blueprint: ${TOPICS.join(', ')}. Every question is tagged to its module, and every module ships with a full written study guide.`,
+    a: `All ${TOPICS.length} modules of the Mendix Advanced blueprint: ${TOPICS.join(', ')}. Every question is tagged to its module, and every module ships with a full written study guide. Nothing is held back from the free exam.`,
   },
   {
     q: 'How is the exam scored?',
     a: `Each question is worth one mark and you need ${PASS_THRESHOLD}% to pass — the same threshold as the real certification. Your result also breaks down module by module, so you can see exactly which topics would have failed you.`,
   },
   {
-    q: 'Can I retake the quiz?',
-    a: 'Yes — unlimited retakes, forever. There is no subscription and no renewal. Every attempt is scored and stored, so you can watch your weakest modules improve over time.',
+    q: 'Is it a subscription?',
+    a: 'No. Full access is a single payment, with no renewal and no upsells. Unlimited retakes, forever.',
   },
 ];
 
@@ -225,13 +254,22 @@ function QuizMockup({ tone = 'dark' }) {
 /* ----------------------------------------------------------------- page --- */
 
 export default function Landing() {
-  const { hasPurchased } = useAuth();
+  const { user, isPaid } = useAuth();
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [emailError, setEmailError] = useState('');
 
-  const primaryHref = hasPurchased ? '/quiz' : '/checkout';
-  const primaryLabel = hasPurchased ? 'Start your exam' : 'Start practicing now';
+  // Signed-in visitors get sent to the hub rather than pitched again.
+  const freeHref = user ? '/dashboard' : '/register';
+  const freeLabel = user ? 'Go to my dashboard' : 'Start practising free';
+  const paidHref = isPaid ? '/quiz' : '/checkout';
+  const paidLabel = isPaid ? 'Start your exam' : 'Get full access';
+
+  /** Carry the hero email through to whichever form comes next. */
+  const withEmail = (href) => {
+    const trimmed = email.trim().toLowerCase();
+    return trimmed ? `${href}?email=${encodeURIComponent(trimmed)}` : href;
+  };
 
   const handleHeroSubmit = (e) => {
     e.preventDefault();
@@ -243,7 +281,7 @@ export default function Landing() {
     }
 
     setEmailError('');
-    navigate(trimmed ? `${primaryHref}?email=${encodeURIComponent(trimmed)}` : primaryHref);
+    navigate(withEmail(freeHref));
   };
 
   return (
@@ -277,41 +315,47 @@ export default function Landing() {
             </h1>
 
             <p className="mt-6 max-w-xl text-lg leading-relaxed text-white/70">
-              De-risk your exam with science-backed practice assessments. Measure your Mendix
-              knowledge with real exam questions.
+              De-risk your exam with science-backed practice assessments. Sit a full timed run free —
+              then unlock every score, breakdown and retake for {PRODUCT.priceLabel}.
             </p>
 
             <form onSubmit={handleHeroSubmit} className="mt-9 max-w-lg" noValidate>
-              <div className="flex flex-col gap-3 sm:flex-row">
-                <label htmlFor="hero-email" className="sr-only">
-                  Your email address
-                </label>
-                <input
-                  id="hero-email"
-                  type="email"
-                  name="email"
-                  autoComplete="email"
-                  placeholder="you@company.com"
-                  value={email}
-                  onChange={(e) => {
-                    setEmail(e.target.value);
-                    if (emailError) setEmailError('');
-                  }}
-                  aria-invalid={emailError ? 'true' : undefined}
-                  aria-describedby={emailError ? 'hero-email-error' : undefined}
-                  className="w-full rounded-full border border-white/15 bg-white/10 px-6 py-3.5 text-base text-white placeholder:text-white/40 focus:border-accent-400 focus:bg-white/15 focus:outline-none sm:flex-1"
-                />
-                <button type="submit" className="btn-pill-accent shrink-0">
-                  Try for free!
-                </button>
-              </div>
+              <label htmlFor="hero-email" className="sr-only">
+                Your email address
+              </label>
+              <input
+                id="hero-email"
+                type="email"
+                name="email"
+                autoComplete="email"
+                placeholder="you@company.com"
+                value={email}
+                onChange={(e) => {
+                  setEmail(e.target.value);
+                  if (emailError) setEmailError('');
+                }}
+                aria-invalid={emailError ? 'true' : undefined}
+                aria-describedby={emailError ? 'hero-email-error' : undefined}
+                className="w-full rounded-full border border-white/15 bg-white/10 px-6 py-3.5 text-base text-white placeholder:text-white/40 focus:border-accent-400 focus:bg-white/15 focus:outline-none"
+              />
               {emailError && (
                 <p id="hero-email-error" role="alert" className="mt-2.5 text-sm text-accent-300">
                   {emailError}
                 </p>
               )}
-              <p className="mt-3 text-sm text-white/45">
-                {PRODUCT.priceLabel} once · lifetime access · no subscription
+
+              <div className="mt-4 flex flex-col gap-3 sm:flex-row">
+                <button type="submit" className="btn-pill-accent shrink-0">
+                  {freeLabel}
+                </button>
+                <Link to={withEmail(paidHref)} className="btn-pill-light shrink-0">
+                  {paidLabel} · {PRODUCT.priceLabel}
+                </Link>
+              </div>
+
+              <p className="mt-4 text-sm text-white/45">
+                Free tier: {FREE_ATTEMPT_LIMIT} full attempt, no card. Full access:{' '}
+                {PRODUCT.priceLabel} once, unlimited attempts, no subscription.
               </p>
             </form>
           </div>
@@ -417,6 +461,79 @@ export default function Landing() {
         </div>
       </section>
 
+      {/* ============================================================ TIERS === */}
+      <section id="tiers" className="scroll-mt-20 bg-white">
+        <div className="mx-auto max-w-6xl px-4 pb-20 sm:px-6">
+          <div className="mx-auto max-w-2xl text-center">
+            <span className="text-xs font-bold tracking-[0.2em] text-accent-600 uppercase">
+              Two ways in
+            </span>
+            <h2 className="display-heading mt-3 text-3xl text-ink-900 sm:text-4xl">
+              Sit it free. Understand it for {PRODUCT.priceLabel}.
+            </h2>
+            <p className="mt-4 text-lg text-ink-500">
+              The free exam is the whole exam — same questions, same clock, same pressure. Full access
+              is what turns a submission into something you can learn from.
+            </p>
+          </div>
+
+          <div className="mt-12 grid gap-6 lg:grid-cols-2 lg:items-start">
+            {TIERS.map((tier) => (
+              <div
+                key={tier.key}
+                className={`flex h-full flex-col rounded-[2rem] border bg-white p-8 transition sm:p-10 ${
+                  tier.featured
+                    ? 'border-accent-200 shadow-2xl shadow-accent-500/10 ring-1 ring-accent-500/20'
+                    : 'border-slate-200 shadow-sm'
+                }`}
+              >
+                <div className="flex items-center justify-between gap-4">
+                  <h3 className="text-lg font-bold text-ink-900">{tier.name}</h3>
+                  {tier.featured && (
+                    <span className="rounded-full bg-accent-500 px-3 py-1 text-[11px] font-bold tracking-wider text-white uppercase">
+                      Most popular
+                    </span>
+                  )}
+                </div>
+
+                <div className="mt-5 flex items-end gap-2">
+                  <span className="text-5xl font-extrabold tracking-tighter text-ink-900">
+                    {tier.price}
+                  </span>
+                  <span className="mb-2 text-sm text-ink-500">{tier.priceNote}</span>
+                </div>
+
+                <p className="mt-4 leading-relaxed text-ink-500">{tier.pitch}</p>
+
+                <ul className="mt-7 space-y-3">
+                  {tier.features.map((item) => (
+                    <li key={item} className="flex items-start gap-3">
+                      <CheckIcon />
+                      <span className="text-ink-700">{item}</span>
+                    </li>
+                  ))}
+                  {tier.missing.map((item) => (
+                    <li key={item} className="flex items-start gap-3 text-ink-500">
+                      <span
+                        className="mt-0.5 flex h-5 w-5 flex-none items-center justify-center font-bold text-slate-300"
+                        aria-hidden="true"
+                      >
+                        ✕
+                      </span>
+                      <span className="line-through decoration-slate-300">{item}</span>
+                    </li>
+                  ))}
+                </ul>
+
+                <Link to={tier.cta.to} className={`${tier.cta.style} mt-9 w-full`}>
+                  {tier.cta.label}
+                </Link>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
       {/* ========================================================== MODULES === */}
       <section id="modules" className="scroll-mt-20 bg-accent-50">
         <div className="mx-auto max-w-6xl px-4 py-20 sm:px-6">
@@ -463,7 +580,7 @@ export default function Landing() {
         <div className="mx-auto max-w-6xl px-4 py-20 sm:px-6">
           <div className="mx-auto max-w-2xl text-center">
             <h2 className="display-heading text-3xl text-ink-900 sm:text-4xl">
-              One payment. Lifetime access.
+              One payment. Unlimited access.
             </h2>
             <p className="mt-4 text-lg text-ink-500">
               No subscription, no renewals, no upsells. Buy it once, retake it forever.
@@ -473,7 +590,7 @@ export default function Landing() {
           <div className="mx-auto mt-12 max-w-lg">
             <div className="overflow-hidden rounded-[2rem] border border-slate-200 bg-white shadow-2xl shadow-accent-500/10 ring-1 ring-accent-500/20">
               <div className="bg-accent-500 px-6 py-3 text-center text-xs font-bold tracking-[0.2em] text-white uppercase">
-                One-time payment
+                One-time payment · unlimited access
               </div>
 
               <div className="p-8 sm:p-10">
@@ -496,12 +613,20 @@ export default function Landing() {
                   ))}
                 </ul>
 
-                <Link to={primaryHref} className="btn-pill-accent mt-9 w-full">
-                  {primaryLabel}
+                <Link to={paidHref} className="btn-pill-accent mt-9 w-full">
+                  {paidLabel}
                 </Link>
 
                 <p className="mt-4 text-center text-xs text-ink-500">
                   Secure payment via Stripe · Instant access · No card details stored by us
+                </p>
+
+                <p className="mt-5 border-t border-slate-100 pt-5 text-center text-sm text-ink-500">
+                  Not ready to pay?{' '}
+                  <Link to={freeHref} className="font-medium text-accent-600 hover:text-accent-700">
+                    Sit one exam free
+                  </Link>{' '}
+                  — no card, no score.
                 </p>
               </div>
             </div>
@@ -550,9 +675,14 @@ export default function Landing() {
           <p className="mt-5 text-lg text-white/85">
             {PRODUCT.priceLabel} once. {QUESTIONS.length} questions. Unlimited retakes.
           </p>
-          <Link to={primaryHref} className="btn-pill-dark mt-9">
-            {hasPurchased ? 'Start your exam' : 'Start practicing'}
-          </Link>
+          <div className="mt-9 flex flex-col justify-center gap-3 sm:flex-row">
+            <Link to={freeHref} className="btn-pill-dark">
+              {freeLabel}
+            </Link>
+            <Link to={paidHref} className="btn-pill-light">
+              {paidLabel}
+            </Link>
+          </div>
         </div>
       </section>
 
@@ -588,13 +718,18 @@ export default function Landing() {
                     </a>
                   </li>
                   <li>
+                    <a href="#tiers" className="text-white/70 transition hover:text-accent-300">
+                      Free vs. full access
+                    </a>
+                  </li>
+                  <li>
                     <a href="#pricing" className="text-white/70 transition hover:text-accent-300">
                       Pricing
                     </a>
                   </li>
                   <li>
                     <Link to="/checkout" className="text-white/70 transition hover:text-accent-300">
-                      Get access
+                      Get full access
                     </Link>
                   </li>
                 </ul>
@@ -605,6 +740,11 @@ export default function Landing() {
                   Account
                 </h3>
                 <ul className="mt-4 space-y-2.5 text-sm">
+                  <li>
+                    <Link to="/register" className="text-white/70 transition hover:text-accent-300">
+                      Start free
+                    </Link>
+                  </li>
                   <li>
                     <Link to="/login" className="text-white/70 transition hover:text-accent-300">
                       Sign in

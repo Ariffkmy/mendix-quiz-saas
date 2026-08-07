@@ -59,7 +59,7 @@ export default function Success() {
   // Already signed in as the buyer? Skip the magic-link step entirely.
   useEffect(() => {
     if (status === 'ready' && user && hasPurchased) {
-      navigate('/quiz', { replace: true });
+      navigate('/dashboard', { replace: true });
     }
   }, [status, user, hasPurchased, navigate]);
 
@@ -67,7 +67,7 @@ export default function Success() {
     setSendingLink(true);
     setError('');
     try {
-      await signInWithEmail(email, '/quiz');
+      await signInWithEmail(email, '/dashboard');
       setStatus('linkSent');
     } catch (err) {
       setError(err.message || 'Could not send the sign-in link.');
@@ -113,7 +113,7 @@ export default function Success() {
         <h1 className="mt-5 text-2xl font-bold text-ink-900">Check your inbox</h1>
         <p className="mt-3 text-ink-500">
           We sent a secure sign-in link to <strong className="text-ink-900">{email}</strong>. Click it
-          and you'll land straight on the exam.
+          and you'll land straight on your dashboard.
         </p>
         <p className="mt-6 text-sm text-ink-500">
           Nothing after a minute? Check spam, or{' '}
@@ -137,8 +137,8 @@ export default function Success() {
       </span>
       <h1 className="mt-5 text-3xl font-bold tracking-tight text-ink-900">Payment confirmed</h1>
       <p className="mt-3 text-ink-500">
-        Your access is tied to <strong className="text-ink-900">{email}</strong>. Send yourself a
-        sign-in link to start the exam — no password needed.
+        Full access is tied to <strong className="text-ink-900">{email}</strong> — unlimited attempts
+        and your full analytics. Send yourself a sign-in link to open your dashboard.
       </p>
 
       {error && (

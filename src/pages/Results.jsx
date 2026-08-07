@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, Navigate } from 'react-router-dom';
 
 import QuestionCard from '../components/QuestionCard.jsx';
 import Spinner from '../components/Spinner.jsx';
+import TopicBar from '../components/TopicBar.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
 import { PASS_THRESHOLD, QUESTIONS } from '../data/questions';
 import { loadLastResult } from '../lib/attemptStorage';
@@ -48,34 +49,15 @@ function ScoreRing({ score, passed }) {
   );
 }
 
-function TopicRow({ entry }) {
-  const tone =
-    entry.percentage >= PASS_THRESHOLD
-      ? 'bg-emerald-500'
-      : entry.percentage >= 50
-        ? 'bg-amber-400'
-        : 'bg-rose-500';
-
-  return (
-    <div className="py-3.5">
-      <div className="mb-1.5 flex items-baseline justify-between gap-4">
-        <span className="text-sm font-medium text-ink-900">{entry.topic}</span>
-        <span className="text-sm whitespace-nowrap text-ink-500">
-          {entry.correct}/{entry.total} · <strong className="text-ink-900">{entry.percentage}%</strong>
-        </span>
-      </div>
-      <div className="h-2 w-full overflow-hidden rounded-full bg-slate-200">
-        <div
-          className={`h-full rounded-full ${tone} transition-all duration-700`}
-          style={{ width: `${entry.percentage}%` }}
-        />
-      </div>
-    </div>
-  );
-}
-
+/**
+ * Full results — paid tier only.
+ *
+ * Free accounts are bounced to their dashboard. That is a courtesy redirect, not
+ * the enforcement: the select policy on quiz_attempts will not hand a score to a
+ * free account, and Quiz.jsx never caches one locally for them either.
+ */
 export default function Results() {
-  const { user } = useAuth();
+  const { user, isPaid } = useAuth();
   const [record, setRecord] = useState(() => loadLastResult());
   const [loading, setLoading] = useState(!record);
   const [history, setHistory] = useState([]);
@@ -83,7 +65,7 @@ export default function Results() {
 
   // No local copy (different device, cleared storage) — fall back to Supabase.
   useEffect(() => {
-    if (!isSupabaseConfigured || !user) {
+    if (!isSupabaseConfigured || !user || !isPaid) {
       setLoading(false);
       return;
     }
@@ -128,7 +110,7 @@ export default function Results() {
     // `record` is intentionally excluded: this should run once per signed-in user,
     // not again after it populates the record it just fetched.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user]);
+  }, [user, isPaid]);
 
   // Re-grade from the stored answers so the review always reflects the current
   // question bank, rather than trusting numbers written by an older client.
@@ -136,6 +118,11 @@ export default function Results() {
     () => (record ? gradeAttempt(record.answers ?? {}) : null),
     [record]
   );
+
+  // Free tier has no results to see — the dashboard is where their upgrade is.
+  if (!isPaid) {
+    return <Navigate to="/dashboard" replace state={{ upgradeRequired: '/results' }} />;
+  }
 
   if (loading) {
     return (
@@ -201,6 +188,9 @@ export default function Results() {
               <Link to="/study" className="btn-secondary">
                 Study the material
               </Link>
+              <Link to="/dashboard" className="btn-ghost">
+                Dashboard
+              </Link>
             </div>
           </div>
         </div>
@@ -240,7 +230,13 @@ export default function Results() {
 
         <div className="mt-4 divide-y divide-slate-100">
           {graded.topicBreakdown.map((entry) => (
-            <TopicRow key={entry.topic} entry={entry} />
+            <TopicBar
+              key={entry.topic}
+              topic={entry.topic}
+              correct={entry.correct}
+              total={entry.total}
+              percentage={entry.percentage}
+            />
           ))}
         </div>
       </section>

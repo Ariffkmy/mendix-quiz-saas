@@ -5,10 +5,12 @@ import Layout from './components/Layout.jsx';
 import ProtectedRoute from './components/ProtectedRoute.jsx';
 import Spinner from './components/Spinner.jsx';
 import Checkout from './pages/Checkout.jsx';
+import Dashboard from './pages/Dashboard.jsx';
 import Landing from './pages/Landing.jsx';
 import Login from './pages/Login.jsx';
 import NotFound from './pages/NotFound.jsx';
 import Quiz from './pages/Quiz.jsx';
+import Register from './pages/Register.jsx';
 import Results from './pages/Results.jsx';
 import Success from './pages/Success.jsx';
 
@@ -33,19 +35,33 @@ export default function App() {
         <Route path="/checkout" element={<Checkout />} />
         <Route path="/success" element={<Success />} />
         <Route path="/login" element={<Login />} />
+        <Route path="/register" element={<Register />} />
 
+        {/* Any signed-in account, free or paid. */}
+        <Route
+          path="/dashboard"
+          element={
+            <ProtectedRoute>
+              <Dashboard />
+            </ProtectedRoute>
+          }
+        />
+        {/* Free accounts may sit the exam — once. The remaining-attempt check
+            lives in Quiz.jsx so it can offer the upgrade in context. */}
         <Route
           path="/quiz"
           element={
-            <ProtectedRoute requirePurchase>
+            <ProtectedRoute>
               <Quiz />
             </ProtectedRoute>
           }
         />
+
+        {/* Paid only: anything that reveals a score. */}
         <Route
           path="/results"
           element={
-            <ProtectedRoute requirePurchase>
+            <ProtectedRoute requirePaid redirectTo="/dashboard">
               <Results />
             </ProtectedRoute>
           }
@@ -53,13 +69,14 @@ export default function App() {
         <Route
           path="/study"
           element={
-            <ProtectedRoute requirePurchase>
+            <ProtectedRoute requirePaid>
               <Suspense fallback={<PageFallback />}>
                 <Study />
               </Suspense>
             </ProtectedRoute>
           }
         />
+
         <Route
           path="/admin"
           element={
