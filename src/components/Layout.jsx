@@ -112,13 +112,17 @@ function Footer() {
 }
 
 export default function Layout() {
+  const { pathname } = useLocation();
+  // The landing page ships its own full marketing footer.
+  const ownFooter = pathname === '/';
+
   return (
     <div className="flex min-h-screen flex-col">
       <Header />
       <main className="flex-1">
         <Outlet />
       </main>
-      <Footer />
+      {!ownFooter && <Footer />}
     </div>
   );
 }

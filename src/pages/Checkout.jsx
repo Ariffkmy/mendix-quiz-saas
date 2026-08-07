@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 
 import { PRODUCT } from '../config';
 import { useAuth } from '../context/AuthContext.jsx';
@@ -10,7 +10,9 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export default function Checkout() {
   const { email: signedInEmail, hasPurchased } = useAuth();
-  const [email, setEmail] = useState(signedInEmail ?? '');
+  const [searchParams] = useSearchParams();
+  // The landing-page hero collects an email up front and passes it through.
+  const [email, setEmail] = useState(signedInEmail ?? searchParams.get('email') ?? '');
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
 

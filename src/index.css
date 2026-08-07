@@ -13,6 +13,18 @@
   --color-brand-800: #14387f;
   --color-brand-900: #0f2a5e;
 
+  /* Vibrant magenta accent — the primary marketing colour. */
+  --color-accent-50: #fff0f8;
+  --color-accent-100: #ffe0f0;
+  --color-accent-200: #ffc2e2;
+  --color-accent-300: #ff8ac7;
+  --color-accent-400: #ff4dab;
+  --color-accent-500: #e6007e;
+  --color-accent-600: #c70069;
+  --color-accent-700: #a30057;
+  --color-accent-800: #7d0043;
+  --color-accent-900: #5a0031;
+
   --color-ink-500: #64748b;
   --color-ink-700: #334155;
   --color-ink-900: #0f172a;
@@ -55,6 +67,30 @@
 
 @utility btn-ghost {
   @apply btn text-ink-700 hover:bg-slate-100;
+}
+
+/* Pill-shaped marketing buttons (landing page). */
+@utility btn-pill {
+  @apply inline-flex items-center justify-center gap-2 rounded-full px-7 py-3.5 text-base
+         font-bold transition disabled:cursor-not-allowed disabled:opacity-50;
+}
+
+@utility btn-pill-accent {
+  @apply btn-pill bg-accent-500 text-white shadow-lg shadow-accent-500/25
+         hover:bg-accent-600 active:bg-accent-700;
+}
+
+@utility btn-pill-dark {
+  @apply btn-pill bg-ink-900 text-white hover:bg-ink-700;
+}
+
+@utility btn-pill-light {
+  @apply btn-pill bg-white text-ink-900 shadow-lg hover:bg-slate-100;
+}
+
+/* Bold, tightly-tracked uppercase display heading. */
+@utility display-heading {
+  @apply font-extrabold tracking-tighter uppercase text-balance;
 }
 
 @utility card {
