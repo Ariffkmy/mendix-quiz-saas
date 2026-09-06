@@ -10,7 +10,7 @@ function Logo() {
         MX
       </span>
       <span className="leading-tight">
-        <span className="block text-sm font-bold text-ink-900">Mendix Advanced</span>
+        <span className="block text-sm font-bold text-ink-900">Mendix Exam Prep</span>
         <span className="block text-xs text-ink-500">Exam Simulator</span>
       </span>
     </Link>
@@ -111,7 +111,7 @@ function Header() {
                 <Link to="/login" className="btn-ghost">
                   Sign in
                 </Link>
-                <Link to="/register" className="btn-secondary">
+                <Link to="/quiz" className="btn-secondary">
                   Start free
                 </Link>
                 <Link to="/checkout" className="btn-primary">
@@ -126,17 +126,37 @@ function Header() {
   );
 }
 
+// Consumer law expects the policy pages to be reachable from anywhere on the
+// site, not just from the marketing footer, so they live in the shared one too.
+const LEGAL_LINKS = [
+  { to: '/terms', label: 'Terms' },
+  { to: '/privacy', label: 'Privacy' },
+  { to: '/refunds', label: 'Refunds' },
+  { to: '/disclaimer', label: 'Disclaimer' },
+  { to: '/contact', label: 'Contact' },
+];
+
 function Footer() {
   return (
     <footer className="mt-auto border-t border-slate-200 bg-white">
-      <div className="mx-auto flex max-w-6xl flex-col gap-3 px-4 py-8 text-sm text-ink-500 sm:flex-row sm:items-center sm:justify-between sm:px-6">
-        <p>
-          © {new Date().getFullYear()} {PRODUCT.name}. Independent study material — not affiliated
-          with or endorsed by Mendix.
-        </p>
-        <a href={`mailto:${PRODUCT.supportEmail}`} className="text-brand-600 hover:text-brand-700">
-          {PRODUCT.supportEmail}
-        </a>
+      <div className="mx-auto flex max-w-6xl flex-col gap-4 px-4 py-8 text-sm text-ink-500 sm:px-6">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <p>
+            © {new Date().getFullYear()} {PRODUCT.name}. Independent study material — not affiliated
+            with or endorsed by Mendix.
+          </p>
+          <a href={`mailto:${PRODUCT.supportEmail}`} className="text-brand-600 hover:text-brand-700">
+            {PRODUCT.supportEmail}
+          </a>
+        </div>
+
+        <nav aria-label="Legal" className="flex flex-wrap gap-x-5 gap-y-2">
+          {LEGAL_LINKS.map((link) => (
+            <Link key={link.to} to={link.to} className="transition hover:text-brand-600">
+              {link.label}
+            </Link>
+          ))}
+        </nav>
       </div>
     </footer>
   );

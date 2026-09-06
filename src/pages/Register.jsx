@@ -3,7 +3,7 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 
 import { TIER_FEATURES } from '../config';
 import { useAuth } from '../context/AuthContext.jsx';
-import { EXAM_MINUTES, QUESTIONS, TOPICS } from '../data/questions';
+import { QUESTIONS } from '../data/questions';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const MIN_PASSWORD = 8;
@@ -91,7 +91,8 @@ export default function Register() {
             Start practising free
           </h1>
           <p className="mt-3 text-ink-500">
-            One full {EXAM_MINUTES}-minute exam, {QUESTIONS.length} questions, no card required.
+            Choose Intermediate or Advanced and build a practice sitting from {QUESTIONS.length}{' '}
+            questions. No card required.
           </p>
 
           {!isSupabaseConfigured && (
@@ -152,6 +153,21 @@ export default function Register() {
             >
               {submitting ? 'Creating your account…' : 'Create my free account'}
             </button>
+
+            {/* No money changes hands here, so a notice is enough — the explicit
+                tick is reserved for checkout, where it has to carry the
+                withdrawal-right waiver. */}
+            <p className="mt-4 text-center text-xs leading-relaxed text-ink-500">
+              By creating an account you agree to our{' '}
+              <Link to="/terms" className="font-medium text-brand-600 hover:text-brand-700">
+                Terms of Service
+              </Link>{' '}
+              and{' '}
+              <Link to="/privacy" className="font-medium text-brand-600 hover:text-brand-700">
+                Privacy Policy
+              </Link>
+              .
+            </p>
           </form>
 
           <p className="mt-6 text-sm text-ink-500">
@@ -185,8 +201,8 @@ export default function Register() {
           </div>
 
           <p className="mt-6 text-xs leading-relaxed text-ink-500">
-            All {TOPICS.length} modules of the Advanced blueprint are in the free exam. Nothing is
-            held back from the question bank.
+            Both certification levels are available in the free exam setup. Questions from the two
+            levels stay in separate sittings.
           </p>
         </div>
       </div>

@@ -15,6 +15,7 @@
 const IN_PROGRESS_KEY = 'mx-exam:in-progress';
 const LAST_RESULT_KEY = 'mx-exam:last-result';
 const ATTEMPT_COUNTS_KEY = 'mx-exam:attempt-counts';
+const SEEN_QUESTIONS_KEY = 'mx-exam:seen-questions';
 
 function read(key) {
   try {
@@ -43,17 +44,17 @@ function remove(key) {
 
 /* ----------------------------- in-progress exam ---------------------------- */
 
-/** @returns {{ answers: Record<string,string>, startedAt: number, deadline: number, flagged: string[] } | null} */
+/** @returns {{ answers: Record<string,string>, startedAt: number, flagged: string[], examLevel?: string } | null} */
 export function loadInProgress() {
   const saved = read(IN_PROGRESS_KEY);
-  if (!saved || typeof saved.startedAt !== 'number' || typeof saved.deadline !== 'number') {
+  if (!saved || typeof saved.startedAt !== 'number') {
     return null;
   }
   return {
     answers: saved.answers ?? {},
     startedAt: saved.startedAt,
-    deadline: saved.deadline,
     flagged: Array.isArray(saved.flagged) ? saved.flagged : [],
+    examLevel: typeof saved.examLevel === 'string' ? saved.examLevel : undefined,
   };
 }
 
@@ -120,9 +121,48 @@ export function syncAttemptCount(userId, serverCount) {
   return next;
 }
 
+/* ------------------------------ seen questions ----------------------------- */
+
+/*
+ * Which questions this browser has already been shown, oldest first.
+ *
+ * A retake should be a fresh set of questions, not the same draw reshuffled, so
+ * the exam builder consults this list and prefers what has never been asked.
+ * Order is what makes the fallback work once the bank runs dry: the questions
+ * asked longest ago come back first.
+ */
+
+/** @returns {string[]} question ids in the order they were last asked. */
+export function loadSeenQuestions() {
+  const saved = read(SEEN_QUESTIONS_KEY);
+  return Array.isArray(saved) ? saved.filter((id) => typeof id === 'string') : [];
+}
+
+/**
+ * Mark a sitting's questions as asked, moving any repeats to the back of the
+ * queue so they are the last to be drawn again.
+ *
+ * @returns {string[]} the updated history.
+ */
+export function recordSeenQuestions(ids) {
+  const asked = [...new Set(ids)];
+  if (asked.length === 0) return loadSeenQuestions();
+
+  const askedSet = new Set(asked);
+  const next = [...loadSeenQuestions().filter((id) => !askedSet.has(id)), ...asked];
+  write(SEEN_QUESTIONS_KEY, next);
+  return next;
+}
+
+/** Start the rotation over — used when the candidate asks for a clean slate. */
+export function clearSeenQuestions() {
+  remove(SEEN_QUESTIONS_KEY);
+}
+
 /** Wipe every local trace of a sitting — used on sign-out. */
 export function clearAttemptData() {
   remove(IN_PROGRESS_KEY);
   remove(LAST_RESULT_KEY);
   remove(ATTEMPT_COUNTS_KEY);
+  remove(SEEN_QUESTIONS_KEY);
 }

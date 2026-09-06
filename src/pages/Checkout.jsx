@@ -15,6 +15,9 @@ export default function Checkout() {
   const [email, setEmail] = useState(signedInEmail ?? searchParams.get('email') ?? '');
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  // Unticked by default and never pre-ticked: consent that is assumed is not
+  // consent. See the note on the checkbox itself for why this one matters.
+  const [agreed, setAgreed] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -23,6 +26,11 @@ export default function Checkout() {
     const trimmed = email.trim().toLowerCase();
     if (!EMAIL_RE.test(trimmed)) {
       setError('Enter a valid email address — this is where your access is sent.');
+      return;
+    }
+
+    if (!agreed) {
+      setError('Please confirm you accept the terms before paying.');
       return;
     }
 
@@ -121,13 +129,60 @@ export default function Checkout() {
               disabled={submitting}
             />
 
+            {/*
+              Two things are being agreed to here, and they are deliberately in
+              one deliberate action rather than buried in fine print:
+
+              1. the terms of sale;
+              2. express consent to immediate delivery of digital content, with
+                 acknowledgement that this ends the statutory 14-day withdrawal
+                 right (EU Consumer Rights Directive art. 16(m), and the UK
+                 equivalent). Without this tick, that right survives the sale
+                 and a buyer can demand their money back after using everything.
+
+              Our own 14-day guarantee in the Refund Policy is more generous
+              than the statutory minimum, so nobody is worse off for ticking it.
+            */}
+            <label className="mt-6 flex items-start gap-3 text-sm leading-relaxed text-ink-700">
+              <input
+                type="checkbox"
+                checked={agreed}
+                onChange={(e) => {
+                  setAgreed(e.target.checked);
+                  if (error) setError('');
+                }}
+                disabled={submitting}
+                className="mt-0.5 h-4 w-4 flex-none rounded border-slate-300 text-brand-600 focus:ring-brand-500"
+              />
+              <span>
+                I agree to the{' '}
+                <Link to="/terms" className="font-medium text-brand-600 hover:text-brand-700">
+                  Terms of Service
+                </Link>{' '}
+                and{' '}
+                <Link to="/privacy" className="font-medium text-brand-600 hover:text-brand-700">
+                  Privacy Policy
+                </Link>
+                . I want access immediately, and I understand this means I lose my statutory 14-day
+                right to withdraw — the{' '}
+                <Link to="/refunds" className="font-medium text-brand-600 hover:text-brand-700">
+                  refund policy
+                </Link>{' '}
+                still applies.
+              </span>
+            </label>
+
             {error && (
-              <p id="email-error" role="alert" className="mt-2.5 text-sm text-rose-600">
+              <p id="email-error" role="alert" className="mt-3 text-sm text-rose-600">
                 {error}
               </p>
             )}
 
-            <button type="submit" className="btn-primary mt-6 w-full py-3 text-base" disabled={submitting}>
+            <button
+              type="submit"
+              className="btn-primary mt-5 w-full py-3 text-base"
+              disabled={submitting || !agreed}
+            >
               {submitting ? 'Redirecting to Stripe…' : `Pay ${PRODUCT.priceLabel} securely`}
             </button>
 

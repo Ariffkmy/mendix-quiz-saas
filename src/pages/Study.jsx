@@ -1,7 +1,6 @@
 import { useMemo, useState } from 'react';
 
 import { KNOWLEDGE_BASE } from '../data/knowledgebase';
-import { QUESTIONS_PER_TOPIC } from '../data/questions';
 import { renderMarkdown } from '../lib/markdown';
 
 export default function Study() {
@@ -26,7 +25,8 @@ export default function Study() {
     <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6">
       <h1 className="text-3xl font-bold tracking-tight text-ink-900">Study material</h1>
       <p className="mt-3 text-ink-500">
-        The knowledge base every exam question is drawn from — {KNOWLEDGE_BASE.length} modules.
+        Review the supporting study notes across {KNOWLEDGE_BASE.length} modules, then practise with
+        the categorized Intermediate and Advanced question banks.
       </p>
 
       <div className="mt-8 grid gap-8 lg:grid-cols-[18rem_1fr] lg:items-start">
@@ -35,7 +35,6 @@ export default function Study() {
           <ul className="space-y-1.5">
             {KNOWLEDGE_BASE.map((mod) => {
               const isActive = mod.slug === active.slug;
-              const count = QUESTIONS_PER_TOPIC[mod.topic] ?? 0;
 
               return (
                 <li key={mod.slug}>
@@ -57,10 +56,13 @@ export default function Study() {
                         isActive ? 'text-brand-800' : 'text-ink-900'
                       }`}
                     >
-                      {mod.topic}
+                      {mod.title}
                     </span>
+                    {/* A module feeds several exam topics and a topic draws on
+                        several modules, so there is no honest per-module
+                        question count to show — name the topics instead. */}
                     <span className="mt-0.5 block text-xs text-ink-500">
-                      {count} exam question{count === 1 ? '' : 's'}
+                      {mod.topics.join(' · ') || 'no topic mapped'}
                     </span>
                   </button>
                 </li>
@@ -75,8 +77,20 @@ export default function Study() {
             <span className="rounded-full bg-brand-50 px-3 py-1 text-xs font-semibold text-brand-700">
               Module
             </span>
-            <h2 className="mt-3 text-2xl font-bold tracking-tight text-ink-900">{active.topic}</h2>
+            <h2 className="mt-3 text-2xl font-bold tracking-tight text-ink-900">{active.title}</h2>
             <p className="mt-1 font-mono text-xs text-ink-500">{active.file}</p>
+            {active.topics.length > 0 && (
+              <div className="mt-3 flex flex-wrap gap-2">
+                {active.topics.map((topic) => (
+                  <span
+                    key={topic}
+                    className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-ink-600"
+                  >
+                    {topic}
+                  </span>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Content is bundled, build-time markdown that renderMarkdown() escapes. */}

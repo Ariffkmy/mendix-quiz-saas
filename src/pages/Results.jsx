@@ -4,10 +4,11 @@ import { Link, Navigate } from 'react-router-dom';
 import QuestionCard from '../components/QuestionCard.jsx';
 import Spinner from '../components/Spinner.jsx';
 import TopicBar from '../components/TopicBar.jsx';
+import { RESULTS_UNLOCKED } from '../config';
 import { useAuth } from '../context/AuthContext.jsx';
 import { PASS_THRESHOLD, QUESTIONS } from '../data/questions';
 import { loadLastResult } from '../lib/attemptStorage';
-import { formatDuration, gradeAttempt } from '../lib/scoring';
+import { formatDuration, gradeAttempt, questionsFromAnswers } from '../lib/scoring';
 import { isSupabaseConfigured, supabase } from '../lib/supabase';
 
 function ScoreRing({ score, passed }) {
@@ -114,13 +115,23 @@ export default function Results() {
 
   // Re-grade from the stored answers so the review always reflects the current
   // question bank, rather than trusting numbers written by an older client.
-  const graded = useMemo(
-    () => (record ? gradeAttempt(record.answers ?? {}) : null),
-    [record]
-  );
+  //
+  // Sittings can be shorter than the full bank, so grade against the questions
+  // this attempt actually asked — its answer map carries a key for every drawn
+  // question. Attempts recorded before configurable length existed only have
+  // keys for answered questions, so those fall back to the whole bank, which is
+  // what they were graded against at the time.
+  const graded = useMemo(() => {
+    if (!record) return null;
+    const answers = record.answers ?? {};
+    const asked = questionsFromAnswers(answers);
+    const isLegacy = asked.length > 0 && asked.length < (record.totalCount ?? asked.length);
+    return gradeAttempt(answers, isLegacy || asked.length === 0 ? QUESTIONS : asked);
+  }, [record]);
 
   // Free tier has no results to see — the dashboard is where their upgrade is.
-  if (!isPaid) {
+  // The local-development switch keeps the page open so a score can be checked.
+  if (!isPaid && !RESULTS_UNLOCKED) {
     return <Navigate to="/dashboard" replace state={{ upgradeRequired: '/results' }} />;
   }
 
@@ -153,6 +164,15 @@ export default function Results() {
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-10 sm:px-6">
+      {/* Unmissable in dev, absent from any production build — otherwise it is
+          easy to believe the paywall is broken. */}
+      {RESULTS_UNLOCKED && !isPaid && (
+        <p className="mb-6 rounded-xl border border-dashed border-amber-400 bg-amber-50 px-4 py-3 text-center text-sm font-medium text-amber-900">
+          <strong className="font-bold">Local development only.</strong> Results are normally paid —
+          this page is unlocked because the app is running in dev mode.
+        </p>
+      )}
+
       {/* Verdict */}
       <div className="card p-6 sm:p-8">
         <div className="flex flex-col items-center gap-8 sm:flex-row sm:items-center">
@@ -286,7 +306,9 @@ export default function Results() {
               <QuestionCard
                 key={r.question.id}
                 question={r.question}
-                index={QUESTIONS.findIndex((q) => q.id === r.question.id)}
+                // Position within this sitting, not within the whole bank — a
+                // short sitting would otherwise read "Question 16 of 10".
+                index={graded.results.findIndex((x) => x.question.id === r.question.id)}
                 total={graded.total}
                 selected={r.given}
                 review

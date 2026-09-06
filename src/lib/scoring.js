@@ -1,21 +1,48 @@
 import { LETTERS, PASS_THRESHOLD, QUESTIONS } from '../data/questions';
 
 /**
+ * The questions a sitting actually asked, recovered from its answer map.
+ *
+ * Every asked question is seeded into `answers` when the exam starts (unanswered
+ * ones as null), so the keys are the sitting's question set. That is what makes
+ * a short sitting gradeable without a schema change — and why grading must never
+ * fall back to the whole bank, which would mark every un-asked question wrong.
+ *
+ * Attempts recorded before configurable length existed have no seeded keys; for
+ * those the caller should fall back to the full bank.
+ *
+ * @returns {Array} the asked questions, in bank order
+ */
+export function questionsFromAnswers(answers, bank = QUESTIONS) {
+  const asked = new Set(Object.keys(answers ?? {}));
+  return asked.size === 0 ? [] : bank.filter((q) => asked.has(q.id));
+}
+
+/**
  * Grade an answer map ({ [questionId]: 'A' | 'B' | 'C' | 'D' }) against the bank.
  *
  * Unanswered questions count as incorrect, which matches how the real exam
  * scores a submission.
+ *
+ * Option counts vary by question type — true/false questions carry two — so the
+ * letter is resolved against the question's own `letters`, never a fixed A-D.
  */
 export function gradeAttempt(answers, questions = QUESTIONS) {
   const results = questions.map((q) => {
     const given = answers?.[q.id] ?? null;
+    const letters = q.letters ?? LETTERS;
+    const textFor = (letter) => {
+      const index = letters.indexOf(letter);
+      return index === -1 ? null : (q.options[index] ?? null);
+    };
+
     return {
       question: q,
       given,
       correct: given === q.answer,
       answered: given !== null,
-      givenText: given ? q.options[LETTERS.indexOf(given)] : null,
-      correctText: q.options[LETTERS.indexOf(q.answer)],
+      givenText: given ? textFor(given) : null,
+      correctText: textFor(q.answer),
     };
   });
 

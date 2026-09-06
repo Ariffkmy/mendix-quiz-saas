@@ -3,7 +3,7 @@
   "private": true,
   "version": "1.0.0",
   "type": "module",
-  "description": "Mendix Advanced Developer Certification exam simulator — a paid practice-exam SaaS.",
+  "description": "Mendix Intermediate and Advanced Developer Certification practice exam simulator.",
   "scripts": {
     "dev": "vite",
     "build": "vite build",

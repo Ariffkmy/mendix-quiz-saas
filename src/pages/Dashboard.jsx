@@ -108,9 +108,8 @@ function FreeDashboard({ attemptsRemaining, attemptsUsed }) {
                 You have {attemptsRemaining} attempt{attemptsRemaining === 1 ? '' : 's'} remaining
               </h2>
               <p className="mt-3 leading-relaxed text-ink-500">
-                {QUESTIONS.length} questions across all {TOPICS.length} Advanced modules, on a{' '}
-                {EXAM_MINUTES}-minute clock. Set aside the time — the free tier includes one sitting,
-                and submitting uses it up.
+                Choose an Intermediate or Advanced practice bank from {QUESTIONS.length} questions.
+                The free tier includes one sitting, and submitting uses it up.
               </p>
 
               <div className="mt-7 flex flex-wrap gap-3">
@@ -294,7 +293,7 @@ function PaidDashboard({ attempts, error }) {
           <p className="mt-1 text-sm text-ink-500">
             {stats
               ? `Unlimited attempts — you've completed ${stats.total}. Every run is scored and tracked below.`
-              : `${QUESTIONS.length} questions, ${EXAM_MINUTES} minutes, ${PASS_THRESHOLD}% to pass.`}
+              : `${QUESTIONS.length} questions across Intermediate and Advanced banks, ${PASS_THRESHOLD}% to pass.`}
           </p>
         </div>
         <div className="flex flex-wrap gap-3">

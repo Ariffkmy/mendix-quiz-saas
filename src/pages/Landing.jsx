@@ -1,65 +1,106 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 
-import { FREE_ATTEMPT_LIMIT, PRODUCT, TIER_FEATURES } from '../config';
+import { PRODUCT, TIER_FEATURES } from '../config';
 import { useAuth } from '../context/AuthContext.jsx';
-import { EXAM_MINUTES, PASS_THRESHOLD, QUESTIONS, TOPICS } from '../data/questions';
+import {
+  EXAM_CATEGORIES,
+  EXAM_LEVELS,
+  EXAM_MINUTES,
+  PASS_THRESHOLD,
+  QUESTIONS,
+} from '../data/questions';
 
 /* ------------------------------------------------------------------ data --- */
 
-/** Presentation metadata per exam module, keyed by the topic name in the bank. */
+/** Presentation metadata per exam topic, keyed by the topic name in the bank. */
 const MODULE_META = {
-  'Advanced Domain Model Skills': {
+  'Advanced domain modeling': {
     emoji: '📘',
-    short: 'Domain Model',
-    body: 'System entities, associations, indexes and date-time handling done properly.',
+    short: 'Domain Modeling',
+    body: 'System entities, inheritance, associations, data conversions and date-time handling.',
   },
-  'Configure Advanced Security': {
+  'Memory and data model optimization': {
+    emoji: '🗄️',
+    short: 'Memory & Optimization',
+    body: 'Retrieves, caching, batching, commits and the aggregation tricks that keep apps fast.',
+  },
+  'Security and performance': {
     emoji: '🔒',
     short: 'Security',
-    body: 'Module roles, entity access rules, XPath constraints and anonymous access.',
+    body: 'Module roles, entity access rules, apply-entity-access and service authentication.',
   },
-  'Constrain Your Data Using Advanced XPath': {
+  XPath: {
     emoji: '🔍',
-    short: 'Advanced XPath',
+    short: 'XPath',
     body: 'Tokens, functions and constraints that filter data without killing performance.',
   },
-  'Design and Publish a REST API': {
-    emoji: '🌐',
-    short: 'REST API',
-    body: 'Published services, operations, status codes and authentication microflows.',
+  Logging: {
+    emoji: '📊',
+    short: 'Logging',
+    body: 'Log levels, log nodes, stack traces, alerts and debugging production behaviour.',
   },
-  'Error Handling': {
+  'User experience': {
+    emoji: '✨',
+    short: 'User Experience',
+    body: 'The surface people meet: API design, status codes and the messages users actually see.',
+  },
+  'Error handling': {
     emoji: '⚠️',
     short: 'Error Handling',
     body: 'Rollback vs. continue, error variables and where transactions really end.',
   },
-  'Master Modeling Microflows': {
-    emoji: '⚙️',
-    short: 'Microflows',
-    body: 'Loops, sub-microflows, java actions and the patterns reviewers expect.',
+  'Agile and Scrum': {
+    emoji: '🤝',
+    short: 'Agile & Scrum',
+    body: 'Roles, Scrum events, team values, story points, velocity and the Definition of Done.',
   },
-  'Track Application Behavior with Logging': {
-    emoji: '📊',
-    short: 'Logging',
-    body: 'Log levels, log nodes, custom messages and reading production behaviour.',
+  'Microflows and Nanoflows': {
+    emoji: '🔀',
+    short: 'Microflows & Nanoflows',
+    body: 'Flow execution, sub-microflows, naming, loops, batches and aggregate functions.',
   },
-  'Win at Working with Data': {
-    emoji: '🗄️',
-    short: 'Working with Data',
-    body: 'Retrieves, commits, caching and the data-heavy questions people lose marks on.',
+  Security: {
+    emoji: '🛡️',
+    short: 'Security',
+    body: 'User and module roles, entity access, anonymous users and session behavior.',
+  },
+  'Domain Model': {
+    emoji: '🧱',
+    short: 'Domain Model',
+    body: 'Associations, persistence, calculated attributes, inheritance and system members.',
+  },
+  'Pages, Layouts, and Atlas UI': {
+    emoji: '🖼️',
+    short: 'Pages & Atlas UI',
+    body: 'Layouts, placeholders, page templates, building blocks, snippets and responsive grids.',
+  },
+  'Modules, App Directory, and Integration': {
+    emoji: '🔌',
+    short: 'Modules & Integration',
+    body: 'Project structure, app-directory files, REST services and data import/export patterns.',
+  },
+  'Languages and Translations': {
+    emoji: '🌍',
+    short: 'Languages & Translations',
+    body: 'Project languages, development language, Batch Translate and translation exports.',
   },
 };
 
-const FALLBACK_META = { emoji: '📕', short: '', body: 'A full module of the Advanced blueprint.' };
+const FALLBACK_META = { emoji: '📕', short: '', body: 'A complete topic in the certification practice bank.' };
 
 const moduleMeta = (topic) => MODULE_META[topic] ?? FALLBACK_META;
 
 const TRUSTED_BY = ['Mendix', 'Siemens', 'Orangeleaf', 'CLEVR', 'Appronto', 'Flowfabric'];
 
+const EXAM_TOPIC_CARDS = EXAM_LEVELS.flatMap((level) =>
+  EXAM_CATEGORIES[level].topics.map((topic) => ({ level, topic }))
+);
+const TOTAL_TOPIC_COUNT = EXAM_TOPIC_CARDS.length;
+
 const STATS = [
   { emoji: '🧠', value: `${QUESTIONS.length}`, label: 'Real exam questions' },
-  { emoji: '🧩', value: `${TOPICS.length}`, label: 'Mendix modules covered' },
+  { emoji: '🧩', value: `${TOTAL_TOPIC_COUNT}`, label: 'Exam topics covered' },
   { emoji: '🎯', value: `${PASS_THRESHOLD}%`, label: 'Pass threshold' },
 ];
 
@@ -70,10 +111,10 @@ const TIERS = [
     name: 'Free',
     price: '$0',
     priceNote: 'No card required',
-    pitch: `Sit the real thing once. ${QUESTIONS.length} questions, ${EXAM_MINUTES} minutes, all ${TOPICS.length} modules.`,
+    pitch: `Choose Intermediate or Advanced and build a practice sitting from ${QUESTIONS.length} questions.`,
     features: TIER_FEATURES.free,
-    missing: ['No score', 'No pass/fail verdict', 'No answer explanations', 'No retakes'],
-    cta: { label: 'Start practising free', to: '/register', style: 'btn-pill-dark' },
+    missing: ['No score', 'No pass/fail verdict', 'No answer explanations', 'No saved history'],
+    cta: { label: 'Start practising free', to: '/quiz', style: 'btn-pill-dark' },
   },
   {
     key: 'paid',
@@ -90,7 +131,7 @@ const TIERS = [
 
 const PRICING_FEATURES = [
   `Unlimited attempts at all ${QUESTIONS.length} exam-style questions`,
-  `All ${TOPICS.length} Advanced modules covered`,
+  `Both Intermediate and Advanced question banks`,
   `${EXAM_MINUTES}-minute timed exam simulation`,
   'Your score and pass/fail verdict on every attempt',
   'Detailed explanation for every single answer',
@@ -101,15 +142,15 @@ const PRICING_FEATURES = [
 const FAQ = [
   {
     q: 'How does the free tier work?',
-    a: `Register with an email and a password — no card. You get ${FREE_ATTEMPT_LIMIT} full sitting: ${QUESTIONS.length} questions, ${EXAM_MINUTES} minutes on the clock, every module included. The one thing it does not include is the result — you submit and get a confirmation, not a score. It is there so you can feel the real exam pressure before deciding.`,
+    a: `Click "Start practising free", choose Intermediate or Advanced, and select the sitting length. No account, email or card is required. The free sitting does not reveal the result; full access unlocks scores, explanations and retakes.`,
   },
   {
     q: 'What does full access add?',
-    a: `Unlimited attempts, your score and pass/fail verdict, a module-by-module breakdown, every question you missed with the explanation, the written study guides, and a dashboard tracking all of it over time. If you upgrade after sitting the free exam, that attempt is still on record — its result unlocks with everything else.`,
+    a: `Unlimited attempts, your score and pass/fail verdict, a module-by-module breakdown, every question you missed with the explanation, the written study guides, and a dashboard tracking all of it over time. The free sitting is anonymous and is not kept, so your history starts from your first attempt as a full-access account.`,
   },
   {
     q: 'What topics are covered?',
-    a: `All ${TOPICS.length} modules of the Mendix Advanced blueprint: ${TOPICS.join(', ')}. Every question is tagged to its module, and every module ships with a full written study guide. Nothing is held back from the free exam.`,
+    a: `The app contains separate Intermediate and Advanced banks with ${TOTAL_TOPIC_COUNT} topic groups in total. Every question is tagged with its certification level and topic, so the two exams are never mixed in one sitting.`,
   },
   {
     q: 'How is the exam scored?',
@@ -120,8 +161,6 @@ const FAQ = [
     a: 'No. Full access is a single payment, with no renewal and no upsells. Unlimited retakes, forever.',
   },
 ];
-
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 /* ---------------------------------------------------------- small pieces --- */
 
@@ -259,29 +298,26 @@ export default function Landing() {
   const [email, setEmail] = useState('');
   const [emailError, setEmailError] = useState('');
 
-  // Signed-in visitors get sent to the hub rather than pitched again.
-  const freeHref = user ? '/dashboard' : '/register';
+  // Signed-in visitors get sent to the hub rather than pitched again. Everyone
+  // else goes straight into the exam — the free sitting needs no account.
+  const freeHref = user ? '/dashboard' : '/quiz';
   const freeLabel = user ? 'Go to my dashboard' : 'Start practising free';
   const paidHref = isPaid ? '/quiz' : '/checkout';
   const paidLabel = isPaid ? 'Start your exam' : 'Get full access';
 
-  /** Carry the hero email through to whichever form comes next. */
+  /** Carry the hero email through to checkout, which prefills from it. */
   const withEmail = (href) => {
     const trimmed = email.trim().toLowerCase();
     return trimmed ? `${href}?email=${encodeURIComponent(trimmed)}` : href;
   };
 
+  // The free sitting needs no email, so a half-typed address in the box must
+  // never stand between the visitor and question one — it is only ever carried
+  // to checkout, where it is validated properly.
   const handleHeroSubmit = (e) => {
     e.preventDefault();
-    const trimmed = email.trim().toLowerCase();
-
-    if (trimmed && !EMAIL_RE.test(trimmed)) {
-      setEmailError('Enter a valid email address.');
-      return;
-    }
-
     setEmailError('');
-    navigate(withEmail(freeHref));
+    navigate(freeHref);
   };
 
   return (
@@ -303,13 +339,13 @@ export default function Landing() {
           <div>
             <span className="inline-flex items-center gap-2 rounded-full border border-accent-500/40 bg-accent-500/10 px-4 py-1.5 text-xs font-bold tracking-widest text-accent-300 uppercase">
               <span className="h-1.5 w-1.5 rounded-full bg-accent-400" />
-              {TOPICS.length} modules · {QUESTIONS.length} questions · {EXAM_MINUTES} min
+              2 exam levels · {QUESTIONS.length} questions · {TOTAL_TOPIC_COUNT} topics
             </span>
 
             <h1 className="display-heading mt-6 text-4xl leading-[0.95] text-white sm:text-5xl lg:text-6xl">
-              Pass your Mendix{' '}
+              Prepare for your Mendix{' '}
               <span className="bg-gradient-to-r from-accent-400 to-accent-200 bg-clip-text text-transparent">
-                Advanced
+                Intermediate or Advanced
               </span>{' '}
               certification
             </h1>
@@ -321,14 +357,14 @@ export default function Landing() {
 
             <form onSubmit={handleHeroSubmit} className="mt-9 max-w-lg" noValidate>
               <label htmlFor="hero-email" className="sr-only">
-                Your email address
+                Your email address — optional, only needed for full access
               </label>
               <input
                 id="hero-email"
                 type="email"
                 name="email"
                 autoComplete="email"
-                placeholder="you@company.com"
+                placeholder="you@company.com — only if you're buying full access"
                 value={email}
                 onChange={(e) => {
                   setEmail(e.target.value);
@@ -354,8 +390,8 @@ export default function Landing() {
               </div>
 
               <p className="mt-4 text-sm text-white/45">
-                Free tier: {FREE_ATTEMPT_LIMIT} full attempt, no card. Full access:{' '}
-                {PRODUCT.priceLabel} once, unlimited attempts, no subscription.
+                Free: the full timed exam, straight away — no account, no card. Full access:{' '}
+                {PRODUCT.priceLabel} once, for the scores, the review and unlimited retakes.
               </p>
             </form>
           </div>
@@ -404,9 +440,9 @@ export default function Landing() {
               Master every module
             </h2>
             <p className="mt-6 max-w-lg text-lg leading-relaxed text-white/85">
-              Every question is written from the official Advanced course material — same phrasing,
-              same plausible-but-wrong distractors. Answer one, and the explanation cites the exact
-              module it came from, so a wrong answer sends you straight to the right page.
+              Choose the certification level you are preparing for. Each original practice question
+              is tagged to its topic and includes a focused explanation, so a wrong answer points you
+              back to the concept you need to review.
             </p>
 
             <ul className="mt-8 space-y-3">
@@ -542,7 +578,7 @@ export default function Landing() {
               The blueprint
             </span>
             <h2 className="display-heading mt-3 text-3xl text-ink-900 sm:text-4xl">
-              {TOPICS.length} modules, nothing skipped
+              {TOTAL_TOPIC_COUNT} topics across two exam levels
             </h2>
             <p className="mt-4 text-lg text-ink-500">
               Every question is tagged to a module, and every module ships with a full written study
@@ -551,11 +587,11 @@ export default function Landing() {
           </div>
 
           <div className="mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-            {TOPICS.map((topic) => {
+            {EXAM_TOPIC_CARDS.map(({ level, topic }) => {
               const meta = moduleMeta(topic);
               return (
                 <div
-                  key={topic}
+                  key={`${level}-${topic}`}
                   className="group rounded-3xl border border-white bg-white p-6 shadow-sm transition hover:-translate-y-1 hover:border-accent-200 hover:shadow-xl"
                 >
                   <span
@@ -567,6 +603,9 @@ export default function Landing() {
                   <h3 className="mt-5 leading-snug font-bold text-ink-900">
                     {meta.short || topic}
                   </h3>
+                  <p className="mt-1 text-xs font-bold tracking-wide text-accent-600 uppercase">
+                    {level}
+                  </p>
                   <p className="mt-2 text-sm leading-relaxed text-ink-500">{meta.body}</p>
                 </div>
               );
@@ -696,17 +735,17 @@ export default function Landing() {
                   MX
                 </span>
                 <span className="leading-tight">
-                  <span className="block text-sm font-bold text-white">Mendix Advanced</span>
+                  <span className="block text-sm font-bold text-white">Mendix Exam Prep</span>
                   <span className="block text-xs text-white/50">Exam Simulator</span>
                 </span>
               </div>
               <p className="mt-5 text-sm leading-relaxed text-white/50">
-                Independent practice material for the Mendix Advanced Developer certification. Not
-                affiliated with or endorsed by Mendix.
+                Independent practice material for Mendix Intermediate and Advanced Developer
+                certification. Not affiliated with or endorsed by Mendix.
               </p>
             </div>
 
-            <div className="grid grid-cols-2 gap-10 sm:gap-16">
+            <div className="grid grid-cols-2 gap-10 sm:grid-cols-3 sm:gap-16">
               <div>
                 <h3 className="text-xs font-bold tracking-[0.2em] text-white/40 uppercase">
                   Product
@@ -741,7 +780,7 @@ export default function Landing() {
                 </h3>
                 <ul className="mt-4 space-y-2.5 text-sm">
                   <li>
-                    <Link to="/register" className="text-white/70 transition hover:text-accent-300">
+                    <Link to="/quiz" className="text-white/70 transition hover:text-accent-300">
                       Start free
                     </Link>
                   </li>
@@ -760,11 +799,32 @@ export default function Landing() {
                   </li>
                 </ul>
               </div>
+
+              <div>
+                <h3 className="text-xs font-bold tracking-[0.2em] text-white/40 uppercase">Legal</h3>
+                <ul className="mt-4 space-y-2.5 text-sm">
+                  {[
+                    ['/terms', 'Terms of Service'],
+                    ['/privacy', 'Privacy Policy'],
+                    ['/refunds', 'Refund Policy'],
+                    ['/disclaimer', 'Disclaimer'],
+                    ['/contact', 'Contact'],
+                  ].map(([to, label]) => (
+                    <li key={to}>
+                      <Link to={to} className="text-white/70 transition hover:text-accent-300">
+                        {label}
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              </div>
             </div>
           </div>
 
           <div className="mt-12 border-t border-white/10 pt-6 text-xs text-white/40">
-            © {new Date().getFullYear()} {PRODUCT.name}. All rights reserved.
+            © {new Date().getFullYear()} {PRODUCT.name}. All rights reserved. Mendix is a trademark
+            of Mendix Technology B.V.; this site is not affiliated with, endorsed by or sponsored by
+            Mendix or Siemens.
           </div>
         </div>
       </footer>
