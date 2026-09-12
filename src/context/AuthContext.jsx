@@ -1,31 +1,27 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 
-import { FREE_ATTEMPT_LIMIT } from '../config';
 import { clearAttemptData } from '../lib/attemptStorage';
 import { isSupabaseConfigured, supabase } from '../lib/supabase';
 
 const AuthContext = createContext(null);
 
 /**
- * Session + tier state for the whole app.
+ * Session state for the whole app.
  *
- * There are two tiers. A **free** account may sit the exam once and never sees a
- * score. A **paid** account (one Stripe payment) gets unlimited attempts and the
- * full analytics dashboard.
+ * Every signed-in account gets everything: unlimited attempts, scores,
+ * explanations and the study guides. There is no tier and no payment — the
+ * only distinction left is `isAdmin`, which unlocks the admin view.
  *
- * Both facts are read from the database, not decided here: `user_profiles.tier`
- * is written only by triggers, `attempts_used` is incremented by a trigger on
- * quiz_attempts, and row-level security refuses to return attempt rows to a free
- * account at all. Everything below is presentation on top of those guarantees.
+ * `attempts_used` is still tracked (a trigger on quiz_attempts maintains it),
+ * but purely as a statistic for the dashboard — nothing gates on it.
  */
 export function AuthProvider({ children }) {
   const [session, setSession] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [purchase, setPurchase] = useState(null);
   const [profile, setProfile] = useState(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [entitlementLoading, setEntitlementLoading] = useState(false);
-  // True once tier has been resolved at least once for the current identity.
+  // True once the profile has been resolved at least once for this identity.
   // Route guards wait on this rather than on `entitlementLoading`, so a
   // mid-session refresh does not blank the page the user is standing on.
   const [entitlementReady, setEntitlementReady] = useState(false);
@@ -63,7 +59,6 @@ export function AuthProvider({ children }) {
 
   const refreshEntitlement = useCallback(async () => {
     if (!isSupabaseConfigured || !user) {
-      setPurchase(null);
       setProfile(null);
       setIsAdmin(false);
       setEntitlementReady(true);
@@ -72,21 +67,12 @@ export function AuthProvider({ children }) {
 
     setEntitlementLoading(true);
     try {
-      // ensure_profile() creates the row on first sign-in and promotes it if a
-      // payment landed while the user was away, then hands it back.
-      const [purchaseRes, adminRes, profileRes] = await Promise.all([
-        supabase
-          .from('purchases')
-          .select('id, email, status, amount_total, currency, created_at, paid_at')
-          .eq('status', 'paid')
-          .order('paid_at', { ascending: false })
-          .limit(1)
-          .maybeSingle(),
+      // ensure_profile() creates the row on first sign-in and hands it back.
+      const [adminRes, profileRes] = await Promise.all([
         supabase.from('admins').select('email').limit(1).maybeSingle(),
         supabase.rpc('ensure_profile'),
       ]);
 
-      setPurchase(purchaseRes.error ? null : (purchaseRes.data ?? null));
       setIsAdmin(!adminRes.error && Boolean(adminRes.data));
       setProfile(profileRes.error ? null : (profileRes.data ?? null));
     } finally {
@@ -100,7 +86,7 @@ export function AuthProvider({ children }) {
     setEntitlementReady(false);
   }, [user?.id]);
 
-  // Re-check tier whenever the signed-in identity changes.
+  // Re-read the profile whenever the signed-in identity changes.
   useEffect(() => {
     refreshEntitlement();
   }, [refreshEntitlement]);
@@ -162,18 +148,11 @@ export function AuthProvider({ children }) {
     // Never leave one account's cached score behind for the next person on this
     // browser to find.
     clearAttemptData();
-    setPurchase(null);
     setProfile(null);
     setIsAdmin(false);
   }, []);
 
   const value = useMemo(() => {
-    const hasPurchased = Boolean(purchase);
-    // Admins are treated as paid so they can exercise the product they support.
-    const isPaid = hasPurchased || profile?.tier === 'paid' || isAdmin;
-    const attemptsUsed = profile?.attempts_used ?? 0;
-    const attemptsRemaining = isPaid ? Infinity : Math.max(0, FREE_ATTEMPT_LIMIT - attemptsUsed);
-
     return {
       session,
       user,
@@ -181,15 +160,9 @@ export function AuthProvider({ children }) {
       loading,
       entitlementLoading,
       entitlementReady,
-      purchase,
       profile,
-      hasPurchased,
-      tier: isPaid ? 'paid' : 'free',
-      isPaid,
-      isFree: !isPaid,
-      attemptsUsed,
-      attemptsRemaining,
-      canStartExam: isPaid || attemptsRemaining > 0,
+      // Kept as a statistic for the dashboard; nothing gates on it any more.
+      attemptsUsed: profile?.attempts_used ?? 0,
       isAdmin,
       isSupabaseConfigured,
       signUpWithPassword,
@@ -205,7 +178,6 @@ export function AuthProvider({ children }) {
     loading,
     entitlementLoading,
     entitlementReady,
-    purchase,
     profile,
     isAdmin,
     signUpWithPassword,

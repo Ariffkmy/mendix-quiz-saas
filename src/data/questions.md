@@ -1,8 +1,18 @@
 # Mendix Advanced Developer Certification — Question Bank
 
-<!-- Source of truth for the exam question bank. Parsed by src/lib/parseQuestions.js.
+<!-- Authoring source for the exam question bank.
+
+     This file is NOT bundled into the app. It is parsed by
+     src/lib/parseQuestions.js and pushed into Supabase by `npm run seed`
+     (scripts/seed-question-bank.mjs), which is what the app reads. Bundling it
+     used to ship every correct answer to the browser.
+
+     Edit here, then re-run `npm run seed`. The seed is a mirror: questions
+     removed from this file are deleted from the database.
+
      Format: `## <topic>`, then `### <id>` + question text, four `- A.`..`- D.`
-     options, `**Answer:** <letter>` and `**Source:** <explanation>`. -->
+     options, `**Answer:** <letter>`, `**Source:** <explanation>` and an
+     optional `**Tip:** <short revision pointer>`. Ids must be unique. -->
 
 ## Advanced Domain Model Skills
 

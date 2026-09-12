@@ -1,33 +1,20 @@
 /**
- * Mendix Advanced Developer Certification — practice question bank.
+ * Exam constants.
  *
- * The bank itself now lives in questions.md (the source of truth) and is parsed
- * by src/lib/parseQuestions.js. This module stays as the import surface the rest
- * of the app already uses, and adds the exam constants derived from the bank.
+ * The question bank itself now lives in Supabase (see
+ * supabase/migrations/0004_question_bank.sql). This module used to re-export a
+ * bundled QUESTIONS array; it no longer does, because that array carried the
+ * answer key into the browser. Use src/lib/questionBank.js to load questions,
+ * and useExamOverview() when all you need is the module list or a count.
  *
- * Each question:
- *   id       unique stable identifier (used as the answer-map key)
- *   topic    exam module the question belongs to (matches a knowledge-base file)
- *   question the question text
- *   options  4 answer options, in A/B/C/D order
- *   answer   the correct option letter
- *   src      explanation, citing the module the answer comes from
+ * PASS_THRESHOLD is mirrored by public.pass_threshold() in the database, which
+ * is the value that actually decides pass/fail. The copy here is for display —
+ * "you need 70% to pass" — and the two must be changed together.
  */
-export { LETTERS, QUESTIONS, parseQuestions } from '../lib/parseQuestions';
+export { LETTERS } from '../lib/parseQuestions';
 
-import { QUESTIONS } from '../lib/parseQuestions';
-
-/** Score at or above this percentage to pass. */
+/** Score at or above this percentage to pass. Mirrors public.pass_threshold(). */
 export const PASS_THRESHOLD = 70;
 
 /** Exam duration in minutes. */
 export const EXAM_MINUTES = 30;
-
-/** Distinct topics, in the order they first appear in the bank. */
-export const TOPICS = [...new Set(QUESTIONS.map((q) => q.topic))];
-
-/** Number of questions per topic, keyed by topic name. */
-export const QUESTIONS_PER_TOPIC = TOPICS.reduce((acc, topic) => {
-  acc[topic] = QUESTIONS.filter((q) => q.topic === topic).length;
-  return acc;
-}, {});

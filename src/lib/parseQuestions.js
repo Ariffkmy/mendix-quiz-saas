@@ -1,9 +1,13 @@
 /**
  * Parser for the markdown question bank (src/data/questions.md).
  *
- * The markdown is the source of truth; this turns it back into the array shape
- * the app has always consumed:
- *   { id, topic, question, options: [4], answer: 'A'|'B'|'C'|'D', src }
+ * The markdown is the authoring source; scripts/seed-question-bank.mjs runs it
+ * through here and writes the result into Supabase. It is deliberately *not*
+ * imported by the app any more — the app reads questions from the database, so
+ * the bank can be edited without a redeploy.
+ *
+ * Keeping this a plain function of a string (rather than a `?raw` import) is
+ * what lets the seed script run it under Node.
  *
  * Expected layout (see the comment at the top of questions.md):
  *   ## <topic>
@@ -12,9 +16,8 @@
  *   - A. <option>            (four of these, A-D)
  *   **Answer:** <letter>
  *   **Source:** <explanation>
+ *   **Tip:** <optional revision pointer>
  */
-
-import markdown from '../data/questions.md?raw';
 
 /** Option letters, in display order. */
 export const LETTERS = ['A', 'B', 'C', 'D'];
@@ -24,13 +27,15 @@ const ID_RE = /^###\s+(.+?)\s*$/;
 const OPTION_RE = /^-\s+([A-D])\.\s+(.+?)\s*$/;
 const ANSWER_RE = /^\*\*Answer:\*\*\s*([A-D])\s*$/;
 const SOURCE_RE = /^\*\*Source:\*\*\s*(.+?)\s*$/;
+const TIP_RE = /^\*\*Tip:\*\*\s*(.+?)\s*$/;
 
 /**
  * @param {string} markdown raw contents of questions.md
- * @returns {Array<{ id: string, topic: string, question: string, options: string[], answer: string, src: string }>}
+ * @returns {Array<{ id: string, topic: string, question: string, options: string[], answer: string, src: string, tip: string }>}
  */
 export function parseQuestions(markdown) {
   const questions = [];
+  const seen = new Set();
   let topic = null;
   let current = null;
 
@@ -40,6 +45,10 @@ export function parseQuestions(markdown) {
       throw new Error(`questions.md: "${current.id}" has ${current.options.length} options, expected 4`);
     }
     if (!current.answer) throw new Error(`questions.md: "${current.id}" has no **Answer:**`);
+    // Ids are primary keys in Supabase now, so a duplicate would silently
+    // overwrite rather than produce two questions.
+    if (seen.has(current.id)) throw new Error(`questions.md: duplicate question id "${current.id}"`);
+    seen.add(current.id);
     questions.push(current);
     current = null;
   };
@@ -59,7 +68,7 @@ export function parseQuestions(markdown) {
     if (idMatch) {
       push();
       if (!topic) throw new Error(`questions.md: question "${idMatch[1]}" appears before any "## <topic>" heading`);
-      current = { id: idMatch[1], topic, question: '', options: [], answer: '', src: '' };
+      current = { id: idMatch[1], topic, question: '', options: [], answer: '', src: '', tip: '' };
       continue;
     }
 
@@ -87,6 +96,12 @@ export function parseQuestions(markdown) {
       continue;
     }
 
+    const tipMatch = TIP_RE.exec(line);
+    if (tipMatch) {
+      current.tip = tipMatch[1];
+      continue;
+    }
+
     // Anything else before the options is the question text (may wrap lines).
     if (!current.options.length) {
       current.question = current.question ? `${current.question} ${line}` : line;
@@ -96,6 +111,3 @@ export function parseQuestions(markdown) {
   push();
   return questions;
 }
-
-/** The parsed question bank, read from src/data/questions.md at build time. */
-export const QUESTIONS = parseQuestions(markdown);

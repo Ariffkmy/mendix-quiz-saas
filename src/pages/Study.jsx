@@ -1,22 +1,77 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
-import { KNOWLEDGE_BASE } from '../data/knowledgebase';
-import { QUESTIONS_PER_TOPIC } from '../data/questions';
+import Spinner from '../components/Spinner.jsx';
 import { renderMarkdown } from '../lib/markdown';
+import { fetchTopicContent, fetchTopics } from '../lib/questionBank';
+import { isSupabaseConfigured } from '../lib/supabase';
 
+/**
+ * The knowledge base, read from Supabase.
+ *
+ * topic_content is readable by any signed-in account.
+ */
 export default function Study() {
-  const [activeSlug, setActiveSlug] = useState(KNOWLEDGE_BASE[0]?.slug ?? null);
+  const [modules, setModules] = useState([]);
+  const [activeSlug, setActiveSlug] = useState(null);
+  const [loading, setLoading] = useState(true);
 
-  const active = KNOWLEDGE_BASE.find((m) => m.slug === activeSlug) ?? KNOWLEDGE_BASE[0] ?? null;
+  useEffect(() => {
+    if (!isSupabaseConfigured) {
+      setLoading(false);
+      return;
+    }
+
+    let active = true;
+
+    (async () => {
+      try {
+        const [topics, content] = await Promise.all([fetchTopics(), fetchTopicContent()]);
+        if (!active) return;
+
+        // Only modules with study material are worth listing.
+        const merged = topics
+          .filter((t) => content.has(t.slug))
+          .map((t) => ({
+            slug: t.slug,
+            topic: t.name,
+            questionCount: t.question_count ?? 0,
+            file: content.get(t.slug).file,
+            content: content.get(t.slug).content,
+          }));
+
+        setModules(merged);
+        setActiveSlug((prev) => prev ?? merged[0]?.slug ?? null);
+      } catch {
+        // Falls through to the empty state below.
+      } finally {
+        if (active) setLoading(false);
+      }
+    })();
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const active = modules.find((m) => m.slug === activeSlug) ?? modules[0] ?? null;
   const html = useMemo(() => (active ? renderMarkdown(active.content) : ''), [active]);
+
+  if (loading) {
+    return (
+      <div className="flex justify-center py-24">
+        <Spinner label="Loading the study material…" />
+      </div>
+    );
+  }
 
   if (!active) {
     return (
       <div className="mx-auto max-w-lg px-4 py-20 text-center sm:px-6">
         <h1 className="text-2xl font-bold text-ink-900">No study material found</h1>
         <p className="mt-3 text-ink-500">
-          Drop the module <code className="font-mono">.md</code> files into{' '}
-          <code className="font-mono">src/data/knowledgebase/</code> and restart the dev server.
+          The study guides live in Supabase. Run{' '}
+          <code className="font-mono">node scripts/seed-question-bank.mjs</code> to load them from{' '}
+          <code className="font-mono">src/data/knowledgebase/</code>.
         </p>
       </div>
     );
@@ -26,16 +81,16 @@ export default function Study() {
     <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6">
       <h1 className="text-3xl font-bold tracking-tight text-ink-900">Study material</h1>
       <p className="mt-3 text-ink-500">
-        The knowledge base every exam question is drawn from — {KNOWLEDGE_BASE.length} modules.
+        The knowledge base every exam question is drawn from — {modules.length} modules.
       </p>
 
       <div className="mt-8 grid gap-8 lg:grid-cols-[18rem_1fr] lg:items-start">
         {/* Module list */}
         <nav className="lg:sticky lg:top-20" aria-label="Modules">
           <ul className="space-y-1.5">
-            {KNOWLEDGE_BASE.map((mod) => {
+            {modules.map((mod) => {
               const isActive = mod.slug === active.slug;
-              const count = QUESTIONS_PER_TOPIC[mod.topic] ?? 0;
+              const count = mod.questionCount;
 
               return (
                 <li key={mod.slug}>
@@ -79,7 +134,7 @@ export default function Study() {
             <p className="mt-1 font-mono text-xs text-ink-500">{active.file}</p>
           </div>
 
-          {/* Content is bundled, build-time markdown that renderMarkdown() escapes. */}
+          {/* Seeded markdown from topic_content, escaped by renderMarkdown(). */}
           <div className="prose-kb max-w-none" dangerouslySetInnerHTML={{ __html: html }} />
         </article>
       </div>

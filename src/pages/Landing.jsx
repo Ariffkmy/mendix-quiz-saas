@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 
-import { FREE_ATTEMPT_LIMIT, PRODUCT, TIER_FEATURES } from '../config';
+import { FEATURES, PRODUCT } from '../config';
 import { useAuth } from '../context/AuthContext.jsx';
-import { EXAM_MINUTES, PASS_THRESHOLD, QUESTIONS, TOPICS } from '../data/questions';
+import { EXAM_MINUTES, PASS_THRESHOLD } from '../data/questions';
+import { useExamOverview } from '../hooks/useExamOverview';
 
 /* ------------------------------------------------------------------ data --- */
 
@@ -57,40 +58,21 @@ const moduleMeta = (topic) => MODULE_META[topic] ?? FALLBACK_META;
 
 const TRUSTED_BY = ['Mendix', 'Siemens', 'Orangeleaf', 'CLEVR', 'Appronto', 'Flowfabric'];
 
-const STATS = [
-  { emoji: '🧠', value: `${QUESTIONS.length}`, label: 'Real exam questions' },
-  { emoji: '🧩', value: `${TOPICS.length}`, label: 'Mendix modules covered' },
+/*
+ * The question count and module list come from `public.topics` in Supabase, so
+ * everything that quotes them is a function of the overview rather than a
+ * module constant. useExamOverview() seeds from config.js, so these render real
+ * numbers on first paint instead of flashing zeroes.
+ */
+const buildStats = ({ questionCount, topics }) => [
+  { emoji: '🧠', value: `${questionCount}`, label: 'Real exam questions' },
+  { emoji: '🧩', value: `${topics.length}`, label: 'Mendix modules covered' },
   { emoji: '🎯', value: `${PASS_THRESHOLD}%`, label: 'Pass threshold' },
 ];
 
-/** The two-tier comparison rendered in the features section. */
-const TIERS = [
-  {
-    key: 'free',
-    name: 'Free',
-    price: '$0',
-    priceNote: 'No card required',
-    pitch: `Sit the real thing once. ${QUESTIONS.length} questions, ${EXAM_MINUTES} minutes, all ${TOPICS.length} modules.`,
-    features: TIER_FEATURES.free,
-    missing: ['No score', 'No pass/fail verdict', 'No answer explanations', 'No retakes'],
-    cta: { label: 'Start practising free', to: '/register', style: 'btn-pill-dark' },
-  },
-  {
-    key: 'paid',
-    name: 'Full access',
-    price: PRODUCT.priceLabel,
-    priceNote: 'One-time · lifetime access',
-    pitch: 'Unlimited attempts and every number behind them. Buy once, keep it forever.',
-    features: TIER_FEATURES.paid,
-    missing: [],
-    cta: { label: 'Get full access', to: '/checkout', style: 'btn-pill-accent' },
-    featured: true,
-  },
-];
-
-const PRICING_FEATURES = [
-  `Unlimited attempts at all ${QUESTIONS.length} exam-style questions`,
-  `All ${TOPICS.length} Advanced modules covered`,
+const buildPricingFeatures = ({ questionCount, topics }) => [
+  `Unlimited attempts at all ${questionCount} exam-style questions`,
+  `All ${topics.length} Advanced modules covered`,
   `${EXAM_MINUTES}-minute timed exam simulation`,
   'Your score and pass/fail verdict on every attempt',
   'Detailed explanation for every single answer',
@@ -98,28 +80,25 @@ const PRICING_FEATURES = [
   'Full knowledge base study guides included',
 ];
 
-const FAQ = [
+const buildFaq = ({ questionCount, topics }) => [
   {
-    q: 'How does the free tier work?',
-    a: `Register with an email and a password — no card. You get ${FREE_ATTEMPT_LIMIT} full sitting: ${QUESTIONS.length} questions, ${EXAM_MINUTES} minutes on the clock, every module included. The one thing it does not include is the result — you submit and get a confirmation, not a score. It is there so you can feel the real exam pressure before deciding.`,
-  },
-  {
-    q: 'What does full access add?',
-    a: `Unlimited attempts, your score and pass/fail verdict, a module-by-module breakdown, every question you missed with the explanation, the written study guides, and a dashboard tracking all of it over time. If you upgrade after sitting the free exam, that attempt is still on record — its result unlocks with everything else.`,
+    q: 'Is it really free?',
+    a: `Yes — all of it. Register with an email and a password, no card. You get unlimited sittings of the full ${questionCount}-question exam, ${EXAM_MINUTES} minutes on the clock, your score and pass/fail verdict, a module-by-module breakdown, every question you missed with its explanation, the written study guides, and a dashboard tracking it all over time. There is no paid tier and nothing held back.`,
   },
   {
     q: 'What topics are covered?',
-    a: `All ${TOPICS.length} modules of the Mendix Advanced blueprint: ${TOPICS.join(', ')}. Every question is tagged to its module, and every module ships with a full written study guide. Nothing is held back from the free exam.`,
+    a: `All ${topics.length} modules of the Mendix Advanced blueprint: ${topics.join(', ')}. Every question is tagged to its module, and every module ships with a full written study guide.`,
   },
   {
     q: 'How is the exam scored?',
     a: `Each question is worth one mark and you need ${PASS_THRESHOLD}% to pass — the same threshold as the real certification. Your result also breaks down module by module, so you can see exactly which topics would have failed you.`,
   },
   {
-    q: 'Is it a subscription?',
-    a: 'No. Full access is a single payment, with no renewal and no upsells. Unlimited retakes, forever.',
+    q: 'How many times can I retake it?',
+    a: 'As often as you like. Every attempt is stored against your account, so the dashboard can show how your score moves over time and which modules are still costing you marks.',
   },
 ];
+
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -180,7 +159,7 @@ function QuizMockup({ tone = 'dark' }) {
         <span className="h-2.5 w-2.5 rounded-full bg-amber-400/80" />
         <span className="h-2.5 w-2.5 rounded-full bg-emerald-400/80" />
         <span className="ml-3 truncate font-mono text-[11px] tracking-wide text-white/40">
-          exam · question 9 of {QUESTIONS.length}
+          exam · question 9 of {questionCount}
         </span>
       </div>
 
@@ -254,16 +233,21 @@ function QuizMockup({ tone = 'dark' }) {
 /* ----------------------------------------------------------------- page --- */
 
 export default function Landing() {
-  const { user, isPaid } = useAuth();
+  const { user } = useAuth();
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [emailError, setEmailError] = useState('');
 
+  const overview = useExamOverview();
+  const { questionCount, topics } = overview;
+  const stats = buildStats(overview);
+  const pricingFeatures = buildPricingFeatures(overview);
+  const faq = buildFaq(overview);
+
   // Signed-in visitors get sent to the hub rather than pitched again.
   const freeHref = user ? '/dashboard' : '/register';
   const freeLabel = user ? 'Go to my dashboard' : 'Start practising free';
-  const paidHref = isPaid ? '/quiz' : '/checkout';
-  const paidLabel = isPaid ? 'Start your exam' : 'Get full access';
+  const examHref = user ? '/quiz' : '/register';
 
   /** Carry the hero email through to whichever form comes next. */
   const withEmail = (href) => {
@@ -303,7 +287,7 @@ export default function Landing() {
           <div>
             <span className="inline-flex items-center gap-2 rounded-full border border-accent-500/40 bg-accent-500/10 px-4 py-1.5 text-xs font-bold tracking-widest text-accent-300 uppercase">
               <span className="h-1.5 w-1.5 rounded-full bg-accent-400" />
-              {TOPICS.length} modules · {QUESTIONS.length} questions · {EXAM_MINUTES} min
+              {topics.length} modules · {questionCount} questions · {EXAM_MINUTES} min
             </span>
 
             <h1 className="display-heading mt-6 text-4xl leading-[0.95] text-white sm:text-5xl lg:text-6xl">
@@ -315,8 +299,8 @@ export default function Landing() {
             </h1>
 
             <p className="mt-6 max-w-xl text-lg leading-relaxed text-white/70">
-              De-risk your exam with science-backed practice assessments. Sit a full timed run free —
-              then unlock every score, breakdown and retake for {PRODUCT.priceLabel}.
+              De-risk your exam with science-backed practice assessments. Full timed runs, every
+              score and breakdown, unlimited retakes — all free.
             </p>
 
             <form onSubmit={handleHeroSubmit} className="mt-9 max-w-lg" noValidate>
@@ -348,14 +332,13 @@ export default function Landing() {
                 <button type="submit" className="btn-pill-accent shrink-0">
                   {freeLabel}
                 </button>
-                <Link to={withEmail(paidHref)} className="btn-pill-light shrink-0">
-                  {paidLabel} · {PRODUCT.priceLabel}
+                <Link to={withEmail(examHref)} className="btn-pill-light shrink-0">
+                  {user ? 'Start your exam' : 'Browse the exam'}
                 </Link>
               </div>
 
               <p className="mt-4 text-sm text-white/45">
-                Free tier: {FREE_ATTEMPT_LIMIT} full attempt, no card. Full access:{' '}
-                {PRODUCT.priceLabel} once, unlimited attempts, no subscription.
+                Free forever. No card, no subscription, unlimited attempts.
               </p>
             </form>
           </div>
@@ -441,7 +424,7 @@ export default function Landing() {
           </h2>
 
           <div className="mt-12 grid gap-6 sm:grid-cols-3">
-            {STATS.map((stat) => (
+            {stats.map((stat) => (
               <div
                 key={stat.label}
                 className="rounded-3xl border border-slate-200 bg-white p-8 text-center shadow-sm transition hover:-translate-y-1 hover:shadow-xl"
@@ -466,146 +449,33 @@ export default function Landing() {
         <div className="mx-auto max-w-6xl px-4 pb-20 sm:px-6">
           <div className="mx-auto max-w-2xl text-center">
             <span className="text-xs font-bold tracking-[0.2em] text-accent-600 uppercase">
-              Two ways in
+              Everything included
             </span>
             <h2 className="display-heading mt-3 text-3xl text-ink-900 sm:text-4xl">
-              Sit it free. Understand it for {PRODUCT.priceLabel}.
+              The whole thing. Free.
             </h2>
             <p className="mt-4 text-lg text-ink-500">
-              The free exam is the whole exam — same questions, same clock, same pressure. Full access
-              is what turns a submission into something you can learn from.
-            </p>
-          </div>
-
-          <div className="mt-12 grid gap-6 lg:grid-cols-2 lg:items-start">
-            {TIERS.map((tier) => (
-              <div
-                key={tier.key}
-                className={`flex h-full flex-col rounded-[2rem] border bg-white p-8 transition sm:p-10 ${
-                  tier.featured
-                    ? 'border-accent-200 shadow-2xl shadow-accent-500/10 ring-1 ring-accent-500/20'
-                    : 'border-slate-200 shadow-sm'
-                }`}
-              >
-                <div className="flex items-center justify-between gap-4">
-                  <h3 className="text-lg font-bold text-ink-900">{tier.name}</h3>
-                  {tier.featured && (
-                    <span className="rounded-full bg-accent-500 px-3 py-1 text-[11px] font-bold tracking-wider text-white uppercase">
-                      Most popular
-                    </span>
-                  )}
-                </div>
-
-                <div className="mt-5 flex items-end gap-2">
-                  <span className="text-5xl font-extrabold tracking-tighter text-ink-900">
-                    {tier.price}
-                  </span>
-                  <span className="mb-2 text-sm text-ink-500">{tier.priceNote}</span>
-                </div>
-
-                <p className="mt-4 leading-relaxed text-ink-500">{tier.pitch}</p>
-
-                <ul className="mt-7 space-y-3">
-                  {tier.features.map((item) => (
-                    <li key={item} className="flex items-start gap-3">
-                      <CheckIcon />
-                      <span className="text-ink-700">{item}</span>
-                    </li>
-                  ))}
-                  {tier.missing.map((item) => (
-                    <li key={item} className="flex items-start gap-3 text-ink-500">
-                      <span
-                        className="mt-0.5 flex h-5 w-5 flex-none items-center justify-center font-bold text-slate-300"
-                        aria-hidden="true"
-                      >
-                        ✕
-                      </span>
-                      <span className="line-through decoration-slate-300">{item}</span>
-                    </li>
-                  ))}
-                </ul>
-
-                <Link to={tier.cta.to} className={`${tier.cta.style} mt-9 w-full`}>
-                  {tier.cta.label}
-                </Link>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ========================================================== MODULES === */}
-      <section id="modules" className="scroll-mt-20 bg-accent-50">
-        <div className="mx-auto max-w-6xl px-4 py-20 sm:px-6">
-          <div className="max-w-2xl">
-            <span className="text-xs font-bold tracking-[0.2em] text-accent-600 uppercase">
-              The blueprint
-            </span>
-            <h2 className="display-heading mt-3 text-3xl text-ink-900 sm:text-4xl">
-              {TOPICS.length} modules, nothing skipped
-            </h2>
-            <p className="mt-4 text-lg text-ink-500">
-              Every question is tagged to a module, and every module ships with a full written study
-              guide you keep for life.
-            </p>
-          </div>
-
-          <div className="mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-            {TOPICS.map((topic) => {
-              const meta = moduleMeta(topic);
-              return (
-                <div
-                  key={topic}
-                  className="group rounded-3xl border border-white bg-white p-6 shadow-sm transition hover:-translate-y-1 hover:border-accent-200 hover:shadow-xl"
-                >
-                  <span
-                    className="flex h-12 w-12 items-center justify-center rounded-2xl bg-accent-50 text-2xl transition group-hover:bg-accent-100"
-                    aria-hidden="true"
-                  >
-                    {meta.emoji}
-                  </span>
-                  <h3 className="mt-5 leading-snug font-bold text-ink-900">
-                    {meta.short || topic}
-                  </h3>
-                  <p className="mt-2 text-sm leading-relaxed text-ink-500">{meta.body}</p>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      </section>
-
-      {/* ========================================================== PRICING === */}
-      <section id="pricing" className="scroll-mt-20 bg-white">
-        <div className="mx-auto max-w-6xl px-4 py-20 sm:px-6">
-          <div className="mx-auto max-w-2xl text-center">
-            <h2 className="display-heading text-3xl text-ink-900 sm:text-4xl">
-              One payment. Unlimited access.
-            </h2>
-            <p className="mt-4 text-lg text-ink-500">
-              No subscription, no renewals, no upsells. Buy it once, retake it forever.
+              Same questions, same clock, same pressure — plus every score, every explanation and
+              as many retakes as you want. There is no paid tier and nothing held back.
             </p>
           </div>
 
           <div className="mx-auto mt-12 max-w-lg">
             <div className="overflow-hidden rounded-[2rem] border border-slate-200 bg-white shadow-2xl shadow-accent-500/10 ring-1 ring-accent-500/20">
               <div className="bg-accent-500 px-6 py-3 text-center text-xs font-bold tracking-[0.2em] text-white uppercase">
-                One-time payment · unlimited access
+                Free · no card required
               </div>
 
               <div className="p-8 sm:p-10">
                 <div className="flex items-end justify-center gap-3">
-                  <span className="text-6xl font-extrabold tracking-tighter text-ink-900">
-                    {PRODUCT.priceLabel}
-                  </span>
-                  <span className="mb-2.5 text-lg text-ink-500 line-through">
-                    {PRODUCT.priceCompareLabel}
-                  </span>
+                  <span className="text-6xl font-extrabold tracking-tighter text-ink-900">$0</span>
                 </div>
-                <p className="mt-2 text-center text-sm text-ink-500">{PRODUCT.currencyNote}</p>
+                <p className="mt-2 text-center text-sm text-ink-500">
+                  No subscription, no renewals, no upsells.
+                </p>
 
                 <ul className="mt-8 space-y-3.5">
-                  {PRICING_FEATURES.map((item) => (
+                  {pricingFeatures.map((item) => (
                     <li key={item} className="flex items-start gap-3">
                       <CheckIcon />
                       <span className="text-ink-700">{item}</span>
@@ -613,20 +483,12 @@ export default function Landing() {
                   ))}
                 </ul>
 
-                <Link to={paidHref} className="btn-pill-accent mt-9 w-full">
-                  {paidLabel}
+                <Link to={freeHref} className="btn-pill-accent mt-9 w-full">
+                  {freeLabel}
                 </Link>
 
                 <p className="mt-4 text-center text-xs text-ink-500">
-                  Secure payment via Stripe · Instant access · No card details stored by us
-                </p>
-
-                <p className="mt-5 border-t border-slate-100 pt-5 text-center text-sm text-ink-500">
-                  Not ready to pay?{' '}
-                  <Link to={freeHref} className="font-medium text-accent-600 hover:text-accent-700">
-                    Sit one exam free
-                  </Link>{' '}
-                  — no card, no score.
+                  An email and a password is all it takes.
                 </p>
               </div>
             </div>
@@ -642,7 +504,7 @@ export default function Landing() {
           </h2>
 
           <div className="mt-10 space-y-3">
-            {FAQ.map((item) => (
+            {faq.map((item) => (
               <details
                 key={item.q}
                 className="group rounded-2xl border border-slate-200 bg-white p-5 transition hover:border-accent-200 [&_summary::-webkit-details-marker]:hidden"
@@ -673,14 +535,11 @@ export default function Landing() {
             Ready to ace your certification?
           </h2>
           <p className="mt-5 text-lg text-white/85">
-            {PRODUCT.priceLabel} once. {QUESTIONS.length} questions. Unlimited retakes.
+            {questionCount} questions. Unlimited retakes. Free forever.
           </p>
           <div className="mt-9 flex flex-col justify-center gap-3 sm:flex-row">
             <Link to={freeHref} className="btn-pill-dark">
               {freeLabel}
-            </Link>
-            <Link to={paidHref} className="btn-pill-light">
-              {paidLabel}
             </Link>
           </div>
         </div>
@@ -723,13 +582,8 @@ export default function Landing() {
                     </a>
                   </li>
                   <li>
-                    <a href="#pricing" className="text-white/70 transition hover:text-accent-300">
-                      Pricing
-                    </a>
-                  </li>
-                  <li>
-                    <Link to="/checkout" className="text-white/70 transition hover:text-accent-300">
-                      Get full access
+                    <Link to="/register" className="text-white/70 transition hover:text-accent-300">
+                      Create an account
                     </Link>
                   </li>
                 </ul>

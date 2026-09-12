@@ -1,12 +1,13 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link, Navigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 
 import QuestionCard from '../components/QuestionCard.jsx';
 import Spinner from '../components/Spinner.jsx';
 import TopicBar from '../components/TopicBar.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
-import { PASS_THRESHOLD, QUESTIONS } from '../data/questions';
+import { PASS_THRESHOLD } from '../data/questions';
 import { loadLastResult } from '../lib/attemptStorage';
+import { fetchAnswerKeys, fetchQuestions, withAnswerKeys } from '../lib/questionBank';
 import { formatDuration, gradeAttempt } from '../lib/scoring';
 import { isSupabaseConfigured, supabase } from '../lib/supabase';
 
@@ -50,22 +51,25 @@ function ScoreRing({ score, passed }) {
 }
 
 /**
- * Full results — paid tier only.
+ * Full results for the most recent attempt, plus the attempt history.
  *
- * Free accounts are bounced to their dashboard. That is a courtesy redirect, not
- * the enforcement: the select policy on quiz_attempts will not hand a score to a
- * free account, and Quiz.jsx never caches one locally for them either.
+ * Row-level security returns a user only their own quiz_attempts rows, so the
+ * select below needs no user filter of its own.
  */
 export default function Results() {
-  const { user, isPaid } = useAuth();
+  const { user } = useAuth();
   const [record, setRecord] = useState(() => loadLastResult());
-  const [loading, setLoading] = useState(!record);
+  // The bank is always fetched, even when a cached record means the verdict
+  // could render immediately — the review below needs it either way.
+  const [loading, setLoading] = useState(true);
   const [history, setHistory] = useState([]);
   const [view, setView] = useState('missed'); // missed | all
+  // The bank with its answer key merged in, for the per-question review.
+  const [bank, setBank] = useState([]);
 
   // No local copy (different device, cleared storage) — fall back to Supabase.
   useEffect(() => {
-    if (!isSupabaseConfigured || !user || !isPaid) {
+    if (!isSupabaseConfigured || !user) {
       setLoading(false);
       return;
     }
@@ -73,6 +77,16 @@ export default function Results() {
     let active = true;
 
     (async () => {
+      // Questions and keys come from Supabase now; the review cannot be
+      // rebuilt without them.
+      try {
+        const [questions, keys] = await Promise.all([fetchQuestions(), fetchAnswerKeys()]);
+        if (active) setBank(withAnswerKeys(questions, keys));
+      } catch {
+        // Leave the bank empty — the verdict below still renders from the
+        // stored attempt, only the per-question review is lost.
+      }
+
       const { data, error } = await supabase
         .from('quiz_attempts')
         .select(
@@ -110,19 +124,15 @@ export default function Results() {
     // `record` is intentionally excluded: this should run once per signed-in user,
     // not again after it populates the record it just fetched.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user, isPaid]);
+  }, [user]);
 
-  // Re-grade from the stored answers so the review always reflects the current
-  // question bank, rather than trusting numbers written by an older client.
+  // Rebuild the per-question review from the stored answers. The score shown in
+  // the verdict comes from the database (it was graded there); this only works
+  // out which option was picked, which was right, and what the explanation says.
   const graded = useMemo(
-    () => (record ? gradeAttempt(record.answers ?? {}) : null),
-    [record]
+    () => (record && bank.length ? gradeAttempt(record.answers ?? {}, bank) : null),
+    [record, bank]
   );
-
-  // Free tier has no results to see — the dashboard is where their upgrade is.
-  if (!isPaid) {
-    return <Navigate to="/dashboard" replace state={{ upgradeRequired: '/results' }} />;
-  }
 
   if (loading) {
     return (
@@ -148,33 +158,46 @@ export default function Results() {
   }
 
   const reviewed = view === 'missed' ? graded.missed : graded.results;
-  const strongest = [...graded.topicBreakdown].reverse()[0];
-  const weakest = graded.topicBreakdown[0];
+
+  // The verdict is whatever the database graded. `graded` only drives the
+  // per-question review — recomputing the headline score in the browser would
+  // quietly diverge from the stored attempt if the bank were edited after it
+  // was sat.
+  const verdict = {
+    score: record.score ?? graded.score,
+    passed: record.passed ?? graded.passed,
+    correctCount: record.correctCount ?? graded.correctCount,
+    total: record.totalCount ?? graded.total,
+  };
+
+  const breakdown = record.topicBreakdown?.length ? record.topicBreakdown : graded.topicBreakdown;
+  const strongest = [...breakdown].reverse()[0];
+  const weakest = breakdown[0];
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-10 sm:px-6">
       {/* Verdict */}
       <div className="card p-6 sm:p-8">
         <div className="flex flex-col items-center gap-8 sm:flex-row sm:items-center">
-          <ScoreRing score={graded.score} passed={graded.passed} />
+          <ScoreRing score={verdict.score} passed={verdict.passed} />
 
           <div className="flex-1 text-center sm:text-left">
             <span
               className={`inline-flex rounded-full px-3.5 py-1 text-sm font-bold ${
-                graded.passed ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700'
+                verdict.passed ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700'
               }`}
             >
-              {graded.passed ? 'PASS' : 'NOT YET'}
+              {verdict.passed ? 'PASS' : 'NOT YET'}
             </span>
 
             <h1 className="mt-3 text-2xl font-bold tracking-tight text-ink-900">
-              {graded.passed
+              {verdict.passed
                 ? "You're tracking well for the real exam"
                 : `You need ${PASS_THRESHOLD}% to pass`}
             </h1>
 
             <p className="mt-2 text-ink-500">
-              {graded.correctCount} of {graded.total} correct
+              {verdict.correctCount} of {verdict.total} correct
               {record.durationSeconds != null && (
                 <> · finished in {formatDuration(record.durationSeconds)}</>
               )}
@@ -229,7 +252,7 @@ export default function Results() {
         <p className="mt-1 text-sm text-ink-500">Weakest modules first — revise from the top down.</p>
 
         <div className="mt-4 divide-y divide-slate-100">
-          {graded.topicBreakdown.map((entry) => (
+          {breakdown.map((entry) => (
             <TopicBar
               key={entry.topic}
               topic={entry.topic}
@@ -286,7 +309,7 @@ export default function Results() {
               <QuestionCard
                 key={r.question.id}
                 question={r.question}
-                index={QUESTIONS.findIndex((q) => q.id === r.question.id)}
+                index={bank.findIndex((q) => q.id === r.question.id)}
                 total={graded.total}
                 selected={r.given}
                 review

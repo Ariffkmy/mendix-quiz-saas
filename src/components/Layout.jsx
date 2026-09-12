@@ -17,22 +17,8 @@ function Logo() {
   );
 }
 
-function TierPill({ tier }) {
-  const paid = tier === 'paid';
-  return (
-    <span
-      className={`hidden rounded-full px-2.5 py-0.5 text-xs font-bold tracking-wide uppercase sm:inline ${
-        paid ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-ink-500'
-      }`}
-      title={paid ? 'Full access' : 'Free tier — one attempt, no results'}
-    >
-      {paid ? 'Full' : 'Free'}
-    </span>
-  );
-}
-
 function Header() {
-  const { user, email, tier, isPaid, isAdmin, signOut } = useAuth();
+  const { user, email, isAdmin, signOut } = useAuth();
   const navigate = useNavigate();
   const { pathname } = useLocation();
 
@@ -69,17 +55,12 @@ function Header() {
                 <NavLink to="/quiz" className={linkClass}>
                   Exam
                 </NavLink>
-                {/* Study and Results reveal answers, so they are paid-only. */}
-                {isPaid && (
-                  <>
-                    <NavLink to="/study" className={linkClass}>
-                      Study
-                    </NavLink>
-                    <NavLink to="/results" className={linkClass}>
-                      Results
-                    </NavLink>
-                  </>
-                )}
+                <NavLink to="/study" className={linkClass}>
+                  Study
+                </NavLink>
+                <NavLink to="/results" className={linkClass}>
+                  Results
+                </NavLink>
               </>
             )}
             {isAdmin && (
@@ -90,18 +71,12 @@ function Header() {
 
             {user ? (
               <div className="ml-2 flex items-center gap-2">
-                <TierPill tier={tier} />
                 <span
                   className="hidden max-w-[12rem] truncate text-sm text-ink-500 lg:inline"
                   title={email}
                 >
                   {email}
                 </span>
-                {!isPaid && (
-                  <Link to="/checkout" className="btn-primary">
-                    Upgrade
-                  </Link>
-                )}
                 <button type="button" onClick={handleSignOut} className="btn-secondary">
                   Sign out
                 </button>
@@ -111,11 +86,8 @@ function Header() {
                 <Link to="/login" className="btn-ghost">
                   Sign in
                 </Link>
-                <Link to="/register" className="btn-secondary">
+                <Link to="/register" className="btn-primary">
                   Start free
-                </Link>
-                <Link to="/checkout" className="btn-primary">
-                  Get full access
                 </Link>
               </div>
             )}

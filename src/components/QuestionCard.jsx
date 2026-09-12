@@ -95,12 +95,21 @@ export default function QuestionCard({
         })}
       </div>
 
-      {review && (
+      {/* The answer and explanation come from question_keys; if they were not
+          loaded, `question.answer` is null and this block does not render. */}
+      {review && question.answer && (
         <div className="mt-6 rounded-xl border border-brand-100 bg-brand-50/60 p-4">
           <p className="text-xs font-bold tracking-wide text-brand-700 uppercase">
             Correct answer: {question.answer}
           </p>
-          <p className="mt-2 text-sm leading-relaxed text-ink-700">{question.src}</p>
+          {question.src && (
+            <p className="mt-2 text-sm leading-relaxed text-ink-700">{question.src}</p>
+          )}
+          {question.tip && (
+            <p className="mt-3 border-t border-brand-100 pt-3 text-sm leading-relaxed text-brand-800">
+              <span className="font-semibold">Tip:</span> {question.tip}
+            </p>
+          )}
         </div>
       )}
     </article>

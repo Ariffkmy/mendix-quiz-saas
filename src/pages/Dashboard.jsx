@@ -1,30 +1,16 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 
 import Spinner from '../components/Spinner.jsx';
 import TopicBar from '../components/TopicBar.jsx';
-import { FREE_ATTEMPT_LIMIT, PAID_ONLY_FEATURES, PRODUCT } from '../config';
 import { useAuth } from '../context/AuthContext.jsx';
-import { EXAM_MINUTES, PASS_THRESHOLD, QUESTIONS, TOPICS } from '../data/questions';
+import { EXAM_MINUTES, PASS_THRESHOLD } from '../data/questions';
+import { useExamOverview } from '../hooks/useExamOverview';
 import { syncAttemptCount } from '../lib/attemptStorage';
 import { formatDuration } from '../lib/scoring';
 import { isSupabaseConfigured, supabase } from '../lib/supabase';
 
 /* --------------------------------------------------------- small pieces --- */
-
-function TierBadge({ tier }) {
-  const paid = tier === 'paid';
-  return (
-    <span
-      className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-bold tracking-wide uppercase ${
-        paid ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-ink-700'
-      }`}
-    >
-      <span className={`h-1.5 w-1.5 rounded-full ${paid ? 'bg-emerald-500' : 'bg-slate-400'}`} />
-      {paid ? 'Full access' : 'Free tier'}
-    </span>
-  );
-}
 
 function StatCard({ label, value, hint, tone = 'default' }) {
   const valueTone = {
@@ -91,149 +77,8 @@ function ScoreTrend({ scores }) {
 
 /* ----------------------------------------------------------- free view --- */
 
-function FreeDashboard({ attemptsRemaining, attemptsUsed }) {
-  const canStart = attemptsRemaining > 0;
-
-  return (
-    <>
-      <div className="mt-8 grid gap-6 lg:grid-cols-[1.4fr_1fr] lg:items-start">
-        {/* Attempt state */}
-        <div className="card p-6 sm:p-8">
-          {canStart ? (
-            <>
-              <p className="text-sm font-semibold tracking-wide text-brand-700 uppercase">
-                Ready when you are
-              </p>
-              <h2 className="mt-2 text-2xl font-bold tracking-tight text-ink-900">
-                You have {attemptsRemaining} attempt{attemptsRemaining === 1 ? '' : 's'} remaining
-              </h2>
-              <p className="mt-3 leading-relaxed text-ink-500">
-                {QUESTIONS.length} questions across all {TOPICS.length} Advanced modules, on a{' '}
-                {EXAM_MINUTES}-minute clock. Set aside the time — the free tier includes one sitting,
-                and submitting uses it up.
-              </p>
-
-              <div className="mt-7 flex flex-wrap gap-3">
-                <Link to="/quiz" className="btn-primary px-6 py-3 text-base">
-                  Start exam
-                </Link>
-                <Link to="/checkout" className="btn-secondary px-6 py-3 text-base">
-                  Get unlimited attempts
-                </Link>
-              </div>
-            </>
-          ) : (
-            <>
-              <p className="text-sm font-semibold tracking-wide text-amber-700 uppercase">
-                Free attempt used
-              </p>
-              <h2 className="mt-2 text-2xl font-bold tracking-tight text-ink-900">
-                Your exam is submitted and on record
-              </h2>
-              <p className="mt-3 leading-relaxed text-ink-500">
-                It's scored and stored against your account — the free tier just doesn't show you the
-                result. Unlock full access to see how you did, review every question you missed, and
-                retake as often as you like.
-              </p>
-
-              <div className="mt-7 flex flex-wrap gap-3">
-                <Link to="/checkout" className="btn-primary px-6 py-3 text-base">
-                  Unlock my results · {PRODUCT.priceLabel}
-                </Link>
-              </div>
-            </>
-          )}
-
-          <dl className="mt-8 grid gap-4 border-t border-slate-200 pt-6 sm:grid-cols-3">
-            {[
-              ['Attempts used', `${attemptsUsed} of ${FREE_ATTEMPT_LIMIT}`],
-              ['Questions', QUESTIONS.length],
-              ['Time limit', `${EXAM_MINUTES} min`],
-            ].map(([label, value]) => (
-              <div key={label}>
-                <dt className="text-xs tracking-wide text-ink-500 uppercase">{label}</dt>
-                <dd className="mt-1 text-lg font-bold text-ink-900">{value}</dd>
-              </div>
-            ))}
-          </dl>
-        </div>
-
-        {/* Upgrade card */}
-        <div className="card overflow-hidden">
-          <div className="bg-brand-600 px-6 py-3 text-center text-xs font-bold tracking-[0.2em] text-white uppercase">
-            Full access
-          </div>
-          <div className="p-6 sm:p-7">
-            <div className="flex items-end gap-2">
-              <span className="text-4xl font-extrabold tracking-tighter text-ink-900">
-                {PRODUCT.priceLabel}
-              </span>
-              <span className="mb-1.5 text-sm text-ink-500">once</span>
-            </div>
-            <p className="mt-1 text-sm text-ink-500">{PRODUCT.currencyNote}</p>
-
-            <ul className="mt-6 space-y-2.5 text-sm">
-              {PAID_ONLY_FEATURES.map((item) => (
-                <li key={item} className="flex items-start gap-2.5 text-ink-700">
-                  <span className="mt-0.5 flex-none font-bold text-emerald-500">✓</span>
-                  {item}
-                </li>
-              ))}
-            </ul>
-
-            <Link to="/checkout" className="btn-primary mt-7 w-full py-3">
-              Upgrade now
-            </Link>
-          </div>
-        </div>
-      </div>
-
-      {/* Locked analytics teaser */}
-      <section className="card mt-6 p-6 sm:p-8">
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div>
-            <h2 className="text-lg font-bold text-ink-900">Your analytics</h2>
-            <p className="mt-1 text-sm text-ink-500">
-              Scores, pass rate and module-by-module performance land here the moment you upgrade.
-            </p>
-          </div>
-          <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-ink-500">
-            🔒 Locked
-          </span>
-        </div>
-
-        <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4" aria-hidden="true">
-          {['Total attempts', 'Average score', 'Best score', 'Pass rate'].map((label) => (
-            <div key={label} className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
-              <p className="text-sm text-ink-500">{label}</p>
-              <p className="mt-1 text-3xl font-bold tracking-tight text-slate-300 select-none">
-                ••
-              </p>
-            </div>
-          ))}
-        </div>
-
-        <div className="mt-6 space-y-3" aria-hidden="true">
-          {TOPICS.slice(0, 4).map((topic, i) => (
-            <div key={topic}>
-              <p className="mb-1.5 text-sm font-medium text-slate-400">{topic}</p>
-              <div className="h-2 w-full overflow-hidden rounded-full bg-slate-100">
-                <div
-                  className="h-full rounded-full bg-slate-200"
-                  style={{ width: `${70 - i * 12}%` }}
-                />
-              </div>
-            </div>
-          ))}
-        </div>
-      </section>
-    </>
-  );
-}
-
-/* ----------------------------------------------------------- paid view --- */
-
-function PaidDashboard({ attempts, error }) {
+function AttemptsOverview({ attempts, error }) {
+  const { questionCount } = useExamOverview();
   const stats = useMemo(() => {
     if (attempts.length === 0) return null;
 
@@ -294,7 +139,7 @@ function PaidDashboard({ attempts, error }) {
           <p className="mt-1 text-sm text-ink-500">
             {stats
               ? `Unlimited attempts — you've completed ${stats.total}. Every run is scored and tracked below.`
-              : `${QUESTIONS.length} questions, ${EXAM_MINUTES} minutes, ${PASS_THRESHOLD}% to pass.`}
+              : `${questionCount} questions, ${EXAM_MINUTES} minutes, ${PASS_THRESHOLD}% to pass.`}
           </p>
         </div>
         <div className="flex flex-wrap gap-3">
@@ -472,21 +317,19 @@ function PaidDashboard({ attempts, error }) {
  * security refuses to return quiz_attempts rows to a free account.
  */
 export default function Dashboard() {
-  const { user, email, tier, isPaid, attemptsUsed, attemptsRemaining } = useAuth();
-  const location = useLocation();
+  const { user, email, attemptsUsed } = useAuth();
 
   const [attempts, setAttempts] = useState([]);
-  const [loading, setLoading] = useState(isPaid);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
-  // Bumped here because the dashboard is where /quiz sends a free user after
-  // submitting — keeps the local mirror level with the server's counter.
+  // Keeps the local mirror level with the server's counter.
   useEffect(() => {
     if (user) syncAttemptCount(user.id, attemptsUsed);
   }, [user, attemptsUsed]);
 
   useEffect(() => {
-    if (!isSupabaseConfigured || !user || !isPaid) {
+    if (!isSupabaseConfigured || !user) {
       setAttempts([]);
       setLoading(false);
       return;
@@ -514,7 +357,7 @@ export default function Dashboard() {
     return () => {
       active = false;
     };
-  }, [user, isPaid]);
+  }, [user]);
 
   if (loading) {
     return (
@@ -526,41 +369,20 @@ export default function Dashboard() {
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6">
-      {/* Redirected here from a paid-only route. */}
-      {location.state?.upgradeRequired && (
-        <div className="mb-6 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
-          <strong className="font-semibold">That page needs full access.</strong> Scores and answer
-          reviews are part of the paid tier — everything else on your account stays as it is.
-        </div>
-      )}
-
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <div className="flex flex-wrap items-center gap-3">
-            <h1 className="text-3xl font-bold tracking-tight text-ink-900">Dashboard</h1>
-            <TierBadge tier={tier} />
-          </div>
+          <h1 className="text-3xl font-bold tracking-tight text-ink-900">Dashboard</h1>
           <p className="mt-2 text-ink-500">
             Signed in as <span className="font-medium text-ink-700">{email}</span>
           </p>
         </div>
 
-        {isPaid ? (
-          <Link to="/study" className="btn-secondary">
-            Study guides
-          </Link>
-        ) : (
-          <Link to="/checkout" className="btn-primary">
-            Upgrade · {PRODUCT.priceLabel}
-          </Link>
-        )}
+        <Link to="/study" className="btn-secondary">
+          Study guides
+        </Link>
       </div>
 
-      {isPaid ? (
-        <PaidDashboard attempts={attempts} error={error} />
-      ) : (
-        <FreeDashboard attemptsRemaining={attemptsRemaining} attemptsUsed={attemptsUsed} />
-      )}
+      <AttemptsOverview attempts={attempts} error={error} />
     </div>
   );
 }

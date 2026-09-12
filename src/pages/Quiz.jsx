@@ -5,9 +5,8 @@ import ProgressBar from '../components/ProgressBar.jsx';
 import QuestionCard from '../components/QuestionCard.jsx';
 import QuestionNav from '../components/QuestionNav.jsx';
 import Timer from '../components/Timer.jsx';
-import { FREE_ATTEMPT_LIMIT, PAID_ONLY_FEATURES, PRODUCT } from '../config';
 import { useAuth } from '../context/AuthContext.jsx';
-import { EXAM_MINUTES, LETTERS, PASS_THRESHOLD, QUESTIONS, TOPICS } from '../data/questions';
+import { EXAM_MINUTES, LETTERS, PASS_THRESHOLD } from '../data/questions';
 import {
   clearInProgress,
   loadInProgress,
@@ -15,14 +14,21 @@ import {
   saveInProgress,
   saveLastResult,
 } from '../lib/attemptStorage';
-import { gradeAttempt } from '../lib/scoring';
-import { isSupabaseConfigured, supabase } from '../lib/supabase';
+import { fetchQuestions, submitAttempt } from '../lib/questionBank';
+import { isSupabaseConfigured } from '../lib/supabase';
+import Spinner from '../components/Spinner.jsx';
 
 const EXAM_MS = EXAM_MINUTES * 60 * 1000;
 
 export default function Quiz() {
   const navigate = useNavigate();
-  const { user, email, isPaid, attemptsRemaining, canStartExam, refreshEntitlement } = useAuth();
+  const { user, refreshEntitlement } = useAuth();
+
+  // The paper is fetched from Supabase — it is no longer bundled, so that the
+  // answer key never reaches the browser for a free account.
+  const [questions, setQuestions] = useState([]);
+  const [bankError, setBankError] = useState('');
+  const [bankLoading, setBankLoading] = useState(true);
 
   // `null` attempt = the pre-exam briefing screen.
   const [attempt, setAttempt] = useState(() => loadInProgress());
@@ -30,14 +36,40 @@ export default function Quiz() {
   const [confirming, setConfirming] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState('');
-  // Free tier lands here after submitting instead of on /results.
-  const [blindSubmitted, setBlindSubmitted] = useState(false);
   const submittedRef = useRef(false);
 
   const answers = attempt?.answers ?? {};
   const flagged = useMemo(() => new Set(attempt?.flagged ?? []), [attempt]);
-  const answeredCount = QUESTIONS.filter((q) => answers[q.id]).length;
-  const question = QUESTIONS[current];
+  const answeredCount = questions.filter((q) => answers[q.id]).length;
+  const question = questions[current];
+
+  const topics = useMemo(
+    () => [...new Set(questions.map((q) => q.topic))],
+    [questions]
+  );
+
+  // Load the paper once per session.
+  useEffect(() => {
+    if (!isSupabaseConfigured) {
+      setBankLoading(false);
+      return;
+    }
+
+    let active = true;
+
+    fetchQuestions()
+      .then((rows) => {
+        if (!active) return;
+        setQuestions(rows);
+        if (!rows.length) setBankError('The question bank is empty. Run the seed script.');
+      })
+      .catch((err) => active && setBankError(err.message))
+      .finally(() => active && setBankLoading(false));
+
+    return () => {
+      active = false;
+    };
+  }, []);
 
   // Mirror every change to localStorage so a refresh mid-exam loses nothing.
   useEffect(() => {
@@ -65,9 +97,9 @@ export default function Quiz() {
   };
 
   const goTo = useCallback((index) => {
-    setCurrent(Math.min(QUESTIONS.length - 1, Math.max(0, index)));
+    setCurrent(Math.min(questions.length - 1, Math.max(0, index)));
     window.scrollTo({ top: 0, behavior: 'smooth' });
-  }, []);
+  }, [questions.length]);
 
   const submit = useCallback(
     async (reason = 'manual') => {
@@ -78,69 +110,62 @@ export default function Quiz() {
       setSubmitError('');
 
       const submittedAt = Date.now();
-      const graded = gradeAttempt(attempt.answers);
       const durationSeconds = Math.round((submittedAt - attempt.startedAt) / 1000);
 
-      const record = {
-        answers: attempt.answers,
-        score: graded.score,
-        correctCount: graded.correctCount,
-        totalCount: graded.total,
-        passed: graded.passed,
-        topicBreakdown: graded.topicBreakdown,
-        durationSeconds,
-        startedAt: new Date(attempt.startedAt).toISOString(),
-        submittedAt: new Date(submittedAt).toISOString(),
-        autoSubmitted: reason === 'timeout',
-      };
-
-      // A free attempt is blind: nothing about the score is cached locally, so
-      // there is no copy for /results to fall back on either.
-      if (isPaid) saveLastResult(record);
-
-      // Persist server-side too. A failed write must not cost the candidate
-      // their result, so it only surfaces as a warning on the results page.
+      // Grading happens in Postgres. The client no longer computes a score at
+      // all — it cannot, since it has no answer key — so there is nothing here
+      // for a tampered client to inflate.
+      let result = null;
       let writeFailed = false;
-      if (isSupabaseConfigured && user) {
-        const { error } = await supabase.from('quiz_attempts').insert({
-          user_id: user.id,
-          email,
-          answers: record.answers,
-          score: record.score,
-          correct_count: record.correctCount,
-          total_count: record.totalCount,
-          passed: record.passed,
-          topic_breakdown: record.topicBreakdown,
-          duration_seconds: record.durationSeconds,
-          started_at: record.startedAt,
-          submitted_at: record.submittedAt,
-          auto_submitted: record.autoSubmitted,
-        });
 
-        if (error) {
+      if (isSupabaseConfigured && user) {
+        try {
+          result = await submitAttempt(attempt.answers, {
+            startedAt: new Date(attempt.startedAt).toISOString(),
+            durationSeconds,
+            autoSubmitted: reason === 'timeout',
+          });
+        } catch (err) {
           writeFailed = true;
-          setSubmitError(error.message);
+          setSubmitError(err.message);
         }
       }
 
-      if (!writeFailed) recordAttempt(user?.id);
-      clearInProgress();
+      // Cache the graded result so /results renders immediately.
+      if (!writeFailed && result) {
+        saveLastResult({
+          answers: attempt.answers,
+          score: result.score,
+          correctCount: result.correct_count,
+          totalCount: result.total_count,
+          passed: result.passed,
+          topicBreakdown: result.topic_breakdown ?? [],
+          durationSeconds: result.duration_seconds,
+          startedAt: result.started_at,
+          submittedAt: result.submitted_at,
+          autoSubmitted: result.auto_submitted,
+        });
+      }
 
-      // Pick up the server's new attempts_used so the dashboard and the guard
-      // above agree about what is left.
+      if (!writeFailed) {
+        recordAttempt(user?.id);
+        clearInProgress();
+      } else {
+        // The submission never landed, so let them try again rather than
+        // stranding them on a dead screen with their answers cleared.
+        submittedRef.current = false;
+        setSubmitting(false);
+        setConfirming(false);
+        return;
+      }
+
+      // Pick up the server's new attempts_used for the dashboard counter.
       await refreshEntitlement();
 
       setSubmitting(false);
-
-      if (isPaid) {
-        navigate('/results', { replace: true, state: { justSubmitted: true } });
-      } else {
-        setBlindSubmitted(true);
-        setConfirming(false);
-        window.scrollTo({ top: 0 });
-      }
+      navigate('/results', { replace: true, state: { justSubmitted: true } });
     },
-    [attempt, user, email, isPaid, navigate, refreshEntitlement]
+    [attempt, user, navigate, refreshEntitlement]
   );
 
   const handleExpire = useCallback(() => {
@@ -149,7 +174,7 @@ export default function Quiz() {
 
   // Keyboard shortcuts: arrows to navigate, 1–4 or A–D to answer.
   useEffect(() => {
-    if (!attempt || confirming || blindSubmitted) return;
+    if (!attempt || confirming) return;
 
     const onKeyDown = (e) => {
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
@@ -167,11 +192,11 @@ export default function Quiz() {
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [attempt, confirming, blindSubmitted, current, goTo]);
+  }, [attempt, confirming, current, goTo]);
 
   // Warn before an accidental tab close mid-exam.
   useEffect(() => {
-    if (!attempt || blindSubmitted || submittedRef.current) return;
+    if (!attempt || submittedRef.current) return;
 
     const onBeforeUnload = (e) => {
       e.preventDefault();
@@ -180,85 +205,28 @@ export default function Quiz() {
 
     window.addEventListener('beforeunload', onBeforeUnload);
     return () => window.removeEventListener('beforeunload', onBeforeUnload);
-  }, [attempt, blindSubmitted]);
+  }, [attempt]);
 
-  /* -------------------- Free tier: exam submitted, no score ---------------- */
+  /* ----------------------- Loading / empty bank ---------------------------- */
 
-  if (blindSubmitted) {
+  // Only gate the screens that actually need the paper. A finished free attempt
+  // still renders its confirmation even if a later refetch came back empty.
+  if (bankLoading) {
     return (
-      <div className="mx-auto max-w-xl px-4 py-16 text-center sm:px-6 lg:py-20">
-        <span className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-emerald-50 text-3xl">
-          ✅
-        </span>
-
-        <h1 className="mt-6 text-3xl font-bold tracking-tight text-ink-900">Exam submitted</h1>
-        <p className="mt-3 leading-relaxed text-ink-500">
-          Your answers are recorded against your account. That was your free attempt, so the score
-          and the review stay sealed — full access opens them, along with unlimited retakes.
-        </p>
-
-        {submitError && (
-          <p role="alert" className="mt-5 rounded-xl bg-rose-50 p-4 text-sm text-rose-700">
-            We couldn't save your attempt to the server: {submitError}
-          </p>
-        )}
-
-        <div className="card mt-8 p-6 text-left sm:p-7">
-          <div className="flex items-baseline justify-between gap-4">
-            <h2 className="font-semibold text-ink-900">Unlock your result</h2>
-            <span className="text-xl font-extrabold tracking-tight whitespace-nowrap text-ink-900">
-              {PRODUCT.priceLabel}
-            </span>
-          </div>
-          <p className="mt-1 text-sm text-ink-500">{PRODUCT.currencyNote}</p>
-
-          <ul className="mt-5 space-y-2.5 text-sm">
-            {PAID_ONLY_FEATURES.map((item) => (
-              <li key={item} className="flex items-start gap-2.5 text-ink-700">
-                <span className="mt-0.5 flex-none font-bold text-emerald-500">✓</span>
-                {item}
-              </li>
-            ))}
-          </ul>
-
-          <Link to="/checkout" className="btn-primary mt-6 w-full py-3">
-            Get full access
-          </Link>
-        </div>
-
-        <Link to="/dashboard" className="btn-secondary mt-6">
-          Back to dashboard
-        </Link>
+      <div className="flex justify-center py-24">
+        <Spinner label="Loading the exam…" />
       </div>
     );
   }
 
-  /* ------------------- Free tier: attempt already spent -------------------- */
-
-  if (!attempt && !canStartExam) {
+  if (bankError) {
     return (
-      <div className="mx-auto max-w-xl px-4 py-16 text-center sm:px-6 lg:py-20">
-        <span className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-amber-50 text-3xl">
-          🔒
-        </span>
-
-        <h1 className="mt-6 text-3xl font-bold tracking-tight text-ink-900">
-          You've used your free attempt
-        </h1>
-        <p className="mt-3 leading-relaxed text-ink-500">
-          The free tier includes {FREE_ATTEMPT_LIMIT} sitting
-          {FREE_ATTEMPT_LIMIT === 1 ? '' : 's'}, and yours is on record. Upgrade once for unlimited
-          retakes — plus the score and the full review of the attempt you already sat.
-        </p>
-
-        <div className="mt-8 flex flex-wrap justify-center gap-3">
-          <Link to="/checkout" className="btn-primary px-6 py-3 text-base">
-            Get full access · {PRODUCT.priceLabel}
-          </Link>
-          <Link to="/dashboard" className="btn-secondary px-6 py-3 text-base">
-            Back to dashboard
-          </Link>
-        </div>
+      <div className="mx-auto max-w-lg px-4 py-20 text-center sm:px-6">
+        <h1 className="text-2xl font-bold text-ink-900">The exam could not be loaded</h1>
+        <p className="mt-3 text-ink-500">{bankError}</p>
+        <Link to="/dashboard" className="btn-primary mt-7">
+          Back to dashboard
+        </Link>
       </div>
     );
   }
@@ -277,7 +245,7 @@ export default function Quiz() {
 
         <dl className="mt-8 grid gap-4 sm:grid-cols-3">
           {[
-            ['Questions', QUESTIONS.length],
+            ['Questions', questions.length],
             ['Time limit', `${EXAM_MINUTES} min`],
             ['Pass mark', `${PASS_THRESHOLD}%`],
           ].map(([label, value]) => (
@@ -287,22 +255,6 @@ export default function Quiz() {
             </div>
           ))}
         </dl>
-
-        {!isPaid && (
-          <div className="mt-6 rounded-xl border border-amber-200 bg-amber-50 p-5">
-            <p className="text-sm font-bold text-amber-900">
-              This is your free attempt — {attemptsRemaining} of {FREE_ATTEMPT_LIMIT} remaining
-            </p>
-            <p className="mt-1.5 text-sm leading-relaxed text-amber-800">
-              Submitting uses it up, and the free tier does not show your score, your pass/fail
-              verdict or the answer explanations. If you want the result,{' '}
-              <Link to="/checkout" className="font-semibold underline underline-offset-2">
-                get full access
-              </Link>{' '}
-              — you can do it after you sit the exam and your attempt will still be there.
-            </p>
-          </div>
-        )}
 
         <div className="card mt-6 p-6">
           <h2 className="font-semibold text-ink-900">How it works</h2>
@@ -324,7 +276,7 @@ export default function Quiz() {
           <div className="mt-6 border-t border-slate-200 pt-5">
             <p className="text-sm font-medium text-ink-700">Modules covered</p>
             <div className="mt-3 flex flex-wrap gap-2">
-              {TOPICS.map((topic) => (
+              {topics.map((topic) => (
                 <span
                   key={topic}
                   className="rounded-full bg-brand-50 px-3 py-1 text-xs font-medium text-brand-700"
@@ -350,7 +302,7 @@ export default function Quiz() {
       {/* Status bar */}
       <div className="card mb-6 flex flex-wrap items-center gap-4 p-4 sm:p-5">
         <div className="min-w-[12rem] flex-1">
-          <ProgressBar value={answeredCount} max={QUESTIONS.length} label="Exam progress" />
+          <ProgressBar value={answeredCount} max={questions.length} label="Exam progress" />
         </div>
         <Timer deadline={attempt.deadline} onExpire={handleExpire} />
         <button
@@ -366,7 +318,7 @@ export default function Quiz() {
       <QuestionCard
         question={question}
         index={current}
-        total={QUESTIONS.length}
+        total={questions.length}
         selected={answers[question.id] ?? null}
         onSelect={selectAnswer}
       />
@@ -395,7 +347,7 @@ export default function Quiz() {
           {flagged.has(question.id) ? '★ Flagged' : '☆ Flag for review'}
         </button>
 
-        {current === QUESTIONS.length - 1 ? (
+        {current === questions.length - 1 ? (
           <button
             type="button"
             onClick={() => setConfirming(true)}
@@ -429,7 +381,7 @@ export default function Quiz() {
         </div>
 
         <QuestionNav
-          questions={QUESTIONS}
+          questions={questions}
           answers={answers}
           current={current}
           onJump={goTo}
@@ -459,10 +411,10 @@ export default function Quiz() {
             <p className="mt-3 text-ink-500">
               You've answered{' '}
               <strong className="text-ink-900">
-                {answeredCount} of {QUESTIONS.length}
+                {answeredCount} of {questions.length}
               </strong>{' '}
               questions.
-              {answeredCount < QUESTIONS.length && (
+              {answeredCount < questions.length && (
                 <> Unanswered questions are marked incorrect.</>
               )}
             </p>
@@ -471,12 +423,6 @@ export default function Quiz() {
               <p className="mt-3 rounded-lg bg-amber-50 p-3 text-sm text-amber-800">
                 You still have {flagged.size} question{flagged.size === 1 ? '' : 's'} flagged for
                 review.
-              </p>
-            )}
-
-            {!isPaid && (
-              <p className="mt-3 rounded-lg bg-slate-100 p-3 text-sm text-ink-700">
-                This uses your free attempt. You'll get a confirmation, not a score.
               </p>
             )}
 

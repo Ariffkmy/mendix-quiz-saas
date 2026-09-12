@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 
-import { TIER_FEATURES } from '../config';
+import { FEATURES } from '../config';
 import { useAuth } from '../context/AuthContext.jsx';
-import { EXAM_MINUTES, QUESTIONS, TOPICS } from '../data/questions';
+import { EXAM_MINUTES } from '../data/questions';
+import { useExamOverview } from '../hooks/useExamOverview';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const MIN_PASSWORD = 8;
@@ -16,6 +17,7 @@ const MIN_PASSWORD = 8;
  * here beyond creating the user.
  */
 export default function Register() {
+  const { questionCount, topics } = useExamOverview();
   const { user, signUpWithPassword, isSupabaseConfigured } = useAuth();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -91,7 +93,7 @@ export default function Register() {
             Start practising free
           </h1>
           <p className="mt-3 text-ink-500">
-            One full {EXAM_MINUTES}-minute exam, {QUESTIONS.length} questions, no card required.
+            Unlimited {EXAM_MINUTES}-minute exams, {questionCount} questions, free forever.
           </p>
 
           {!isSupabaseConfigured && (
@@ -167,7 +169,7 @@ export default function Register() {
         <div className="card p-6 sm:p-8">
           <h2 className="font-semibold text-ink-900">What the free account includes</h2>
           <ul className="mt-4 space-y-3 text-sm text-ink-700">
-            {TIER_FEATURES.free.map((item) => (
+            {FEATURES.map((item) => (
               <li key={item} className="flex items-start gap-3">
                 <span className="mt-1.5 h-1.5 w-1.5 flex-none rounded-full bg-brand-500" />
                 {item}
@@ -185,7 +187,7 @@ export default function Register() {
           </div>
 
           <p className="mt-6 text-xs leading-relaxed text-ink-500">
-            All {TOPICS.length} modules of the Advanced blueprint are in the free exam. Nothing is
+            All {topics.length} modules of the Advanced blueprint are included. Nothing is
             held back from the question bank.
           </p>
         </div>

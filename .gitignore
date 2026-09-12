@@ -23,3 +23,6 @@ Thumbs.db
 !.vscode/extensions.json
 *.suo
 *.sw?
+
+# Supabase CLI scratch state (link target, cached versions)
+supabase/.temp

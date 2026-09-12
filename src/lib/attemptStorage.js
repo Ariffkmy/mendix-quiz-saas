@@ -9,7 +9,7 @@
  * actually holds is `can_attempt()` behind the insert policy on quiz_attempts,
  * so clearing localStorage buys nobody an extra attempt.
  *
- * Results are only ever cached for paid accounts — a free account's score never
+ * Results are cached so /results can render without a round-trip — the
  * touches this file, which is why /results has nothing to show them even offline.
  */
 const IN_PROGRESS_KEY = 'mx-exam:in-progress';
@@ -67,7 +67,7 @@ export function clearInProgress() {
 
 /* -------------------------------- last result ------------------------------ */
 
-/** The most recently submitted attempt, used to render /results. Paid only. */
+/** The most recently submitted attempt, used to render /results. */
 export function loadLastResult() {
   return read(LAST_RESULT_KEY);
 }

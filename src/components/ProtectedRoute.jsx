@@ -16,22 +16,15 @@ function Gate({ title, body, actions }) {
 /**
  * Route guard.
  *
- * Signing in is enough for /dashboard and /quiz — a free account is a real
- * account. `requirePaid` covers the routes that reveal a score (/results,
- * /study); free users are sent to their dashboard rather than shown a wall,
- * since that is where the upgrade lives.
+ * Signing in is enough for everything except /admin — the product is free, so
+ * there is no entitlement left to check.
  *
  * This is a UX gate, not the security boundary. The real enforcement is the
- * row-level security in Supabase, which will not return an attempt row to a free
- * account even if it reaches /results directly.
+ * row-level security in Supabase, which returns a user only their own rows
+ * however they reach a route.
  */
-export default function ProtectedRoute({
-  children,
-  requirePaid = false,
-  requireAdmin = false,
-  redirectTo = null,
-}) {
-  const { user, loading, entitlementReady, isPaid, isAdmin, isSupabaseConfigured } = useAuth();
+export default function ProtectedRoute({ children, requireAdmin = false }) {
+  const { user, loading, entitlementReady, isAdmin, isSupabaseConfigured } = useAuth();
   const location = useLocation();
 
   if (!isSupabaseConfigured) {
@@ -71,29 +64,6 @@ export default function ProtectedRoute({
           <Link to="/dashboard" className="btn-primary">
             Back to dashboard
           </Link>
-        }
-      />
-    );
-  }
-
-  if (requirePaid && !isPaid) {
-    if (redirectTo) {
-      return <Navigate to={redirectTo} replace state={{ upgradeRequired: location.pathname }} />;
-    }
-
-    return (
-      <Gate
-        title="That's a full-access feature"
-        body="Your free attempt does not include scores, explanations or the study guides. Unlock everything with a single payment."
-        actions={
-          <>
-            <Link to="/checkout" className="btn-primary">
-              Get full access
-            </Link>
-            <Link to="/dashboard" className="btn-secondary">
-              Back to dashboard
-            </Link>
-          </>
         }
       />
     );

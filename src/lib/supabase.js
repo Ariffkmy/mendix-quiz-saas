@@ -5,8 +5,8 @@ const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
 /**
  * True when Supabase credentials are present. When they are not, the app still
- * runs (landing page, demo quiz) but auth and purchase gating are disabled —
- * this keeps `npm run dev` useful before you have filled in .env.
+ * runs (landing page) but auth and the exam are disabled — this keeps
+ * `npm run dev` useful before you have filled in .env.
  */
 export const isSupabaseConfigured = Boolean(url && anonKey);
 

@@ -1,13 +1,25 @@
-import { LETTERS, PASS_THRESHOLD, QUESTIONS } from '../data/questions';
+import { LETTERS, PASS_THRESHOLD } from '../data/questions';
 
 /**
- * Grade an answer map ({ [questionId]: 'A' | 'B' | 'C' | 'D' }) against the bank.
+ * Grade an answer map against a question list, for display only.
  *
- * Unanswered questions count as incorrect, which matches how the real exam
- * scores a submission.
+ * The authoritative grading happens in Postgres — public.submit_attempt() scores
+ * the paper against question_keys and writes the result. This function exists so
+ * the results page can rebuild the per-question review — which option was
+ * picked, which was right, what the explanation says — without asking the server
+ * to grade the same paper twice.
+ *
+ * `questions` must therefore carry `answer` — pass the output of
+ * withAnswerKeys(). Questions with a null answer are not gradeable and are left
+ * out of the totals rather than counted wrong.
+ *
+ * Unanswered-but-gradeable questions count as incorrect, matching how the real
+ * exam scores a submission.
  */
-export function gradeAttempt(answers, questions = QUESTIONS) {
-  const results = questions.map((q) => {
+export function gradeAttempt(answers, questions = []) {
+  const gradeable = questions.filter((q) => q.answer != null);
+
+  const results = gradeable.map((q) => {
     const given = answers?.[q.id] ?? null;
     return {
       question: q,
