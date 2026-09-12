@@ -3,33 +3,41 @@ import { useEffect, useState } from 'react';
 import { formatDuration } from '../lib/scoring';
 
 /**
- * Counts down from `deadline` (an epoch-ms timestamp) and calls `onExpire` once.
+ * The exam clock.
+ *
+ * With a `deadline` (epoch ms) it counts down and calls `onExpire` once. With
+ * `deadline` null the run is untimed, so it counts up from `startedAt` instead
+ * — an untimed practice run still benefits from knowing how long it took, and a
+ * blank space where the clock was reads like something is broken.
  *
  * The deadline is absolute rather than a tick-accumulated remainder, so a
  * backgrounded tab or a page refresh cannot buy the candidate extra time.
  */
-export default function Timer({ deadline, onExpire }) {
-  const [remaining, setRemaining] = useState(() => Math.max(0, deadline - Date.now()));
+export default function Timer({ deadline = null, startedAt = null, onExpire }) {
+  const untimed = deadline == null;
+  const measure = () =>
+    untimed ? Math.max(0, Date.now() - (startedAt ?? Date.now())) : Math.max(0, deadline - Date.now());
+
+  const [remaining, setRemaining] = useState(measure);
 
   useEffect(() => {
-    setRemaining(Math.max(0, deadline - Date.now()));
+    setRemaining(measure());
 
-    const id = setInterval(() => {
-      setRemaining(Math.max(0, deadline - Date.now()));
-    }, 1000);
-
+    const id = setInterval(() => setRemaining(measure()), 1000);
     return () => clearInterval(id);
-  }, [deadline]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [deadline, startedAt, untimed]);
 
-  const expired = remaining <= 0;
+  const expired = !untimed && remaining <= 0;
 
   useEffect(() => {
     if (expired) onExpire?.();
   }, [expired, onExpire]);
 
   const seconds = Math.round(remaining / 1000);
-  const critical = seconds <= 60;
-  const warning = seconds <= 300;
+  // Only a countdown has anything to warn about.
+  const critical = !untimed && seconds <= 60;
+  const warning = !untimed && seconds <= 300;
 
   const tone = critical
     ? 'bg-rose-50 text-rose-700 ring-rose-200'
@@ -53,7 +61,7 @@ export default function Timer({ deadline, onExpire }) {
         />
       </svg>
       {formatDuration(seconds)}
-      <span className="sr-only">remaining</span>
+      <span className="sr-only">{untimed ? 'elapsed' : 'remaining'}</span>
     </div>
   );
 }

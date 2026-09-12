@@ -101,18 +101,28 @@ export async function fetchTopicContent() {
 /**
  * Submit an exam for server-side grading.
  *
- * The client sends answers and timing only — score, pass/fail and the topic
- * breakdown are computed in the database against question_keys, so a tampered
- * client cannot report a score it did not earn.
+ * The client sends the paper, the answers and the timing — score, pass/fail and
+ * the topic breakdown are computed in the database against question_keys, so a
+ * tampered client cannot report a score it did not earn.
+ *
+ * `questionIds` is what makes a short run score out of its own length rather
+ * than out of the whole bank. The server intersects it with `questions`, so
+ * unknown or repeated ids cannot pad or shrink the denominator. Omit it for the
+ * full bank.
  *
  * @param {Record<string, string>} answers question id -> 'A' | 'B' | 'C' | 'D'
  */
-export async function submitAttempt(answers, { startedAt, durationSeconds, autoSubmitted }) {
+export async function submitAttempt(
+  answers,
+  { questionIds, startedAt, durationSeconds, autoSubmitted, timeLimitMinutes } = {}
+) {
   const { data, error } = await requireSupabase().rpc('submit_attempt', {
     p_answers: answers ?? {},
+    p_question_ids: questionIds?.length ? questionIds : null,
     p_started_at: startedAt ?? null,
     p_duration_seconds: durationSeconds ?? null,
     p_auto_submitted: Boolean(autoSubmitted),
+    p_time_limit_minutes: timeLimitMinutes ?? null,
   });
 
   if (error) throw new Error(error.message);

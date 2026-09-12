@@ -26,3 +26,4 @@ Thumbs.db
 
 # Supabase CLI scratch state (link target, cached versions)
 supabase/.temp
+.env*

@@ -4,13 +4,11 @@
  * Answers are mirrored to localStorage on every change so a refresh, a crash or
  * a closed tab mid-exam does not lose progress.
  *
- * The attempt counter here is a per-user convenience mirror only: it lets the UI
- * say "1 attempt remaining" before the profile fetch resolves. The limit that
- * actually holds is `can_attempt()` behind the insert policy on quiz_attempts,
- * so clearing localStorage buys nobody an extra attempt.
+ * The attempt counter here is a per-user convenience mirror of
+ * user_profiles.attempts_used, so the dashboard can show a count before the
+ * profile fetch resolves. Nothing gates on it.
  *
- * Results are cached so /results can render without a round-trip — the
- * touches this file, which is why /results has nothing to show them even offline.
+ * Results are cached so /results can render without a round-trip.
  */
 const IN_PROGRESS_KEY = 'mx-exam:in-progress';
 const LAST_RESULT_KEY = 'mx-exam:last-result';
@@ -43,17 +41,28 @@ function remove(key) {
 
 /* ----------------------------- in-progress exam ---------------------------- */
 
-/** @returns {{ answers: Record<string,string>, startedAt: number, deadline: number, flagged: string[] } | null} */
+/**
+ * @returns {{ answers: Record<string,string>, startedAt: number, deadline: number|null,
+ *   flagged: string[], questionIds: string[], timeLimitMinutes: number|null } | null}
+ */
 export function loadInProgress() {
   const saved = read(IN_PROGRESS_KEY);
-  if (!saved || typeof saved.startedAt !== 'number' || typeof saved.deadline !== 'number') {
-    return null;
-  }
+  if (!saved || typeof saved.startedAt !== 'number') return null;
+
+  // An untimed run has no deadline, so only reject a malformed one.
+  if (saved.deadline != null && typeof saved.deadline !== 'number') return null;
+
+  // Without the paper there is nothing to resume — the questions were chosen at
+  // random, so a saved answer map alone cannot be put back on screen.
+  if (!Array.isArray(saved.questionIds) || saved.questionIds.length === 0) return null;
+
   return {
     answers: saved.answers ?? {},
     startedAt: saved.startedAt,
-    deadline: saved.deadline,
+    deadline: saved.deadline ?? null,
     flagged: Array.isArray(saved.flagged) ? saved.flagged : [],
+    questionIds: saved.questionIds,
+    timeLimitMinutes: saved.timeLimitMinutes ?? null,
   };
 }
 

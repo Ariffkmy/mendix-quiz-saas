@@ -90,7 +90,7 @@ export default function Results() {
       const { data, error } = await supabase
         .from('quiz_attempts')
         .select(
-          'id, answers, score, correct_count, total_count, passed, topic_breakdown, duration_seconds, started_at, submitted_at, auto_submitted'
+          'id, answers, score, correct_count, total_count, passed, topic_breakdown, duration_seconds, started_at, submitted_at, auto_submitted, question_ids, time_limit_minutes'
         )
         .order('submitted_at', { ascending: false })
         .limit(20);
@@ -112,6 +112,8 @@ export default function Results() {
             startedAt: latest.started_at,
             submittedAt: latest.submitted_at,
             autoSubmitted: latest.auto_submitted,
+            questionIds: latest.question_ids ?? null,
+            timeLimitMinutes: latest.time_limit_minutes ?? null,
           });
         }
       }
@@ -129,10 +131,19 @@ export default function Results() {
   // Rebuild the per-question review from the stored answers. The score shown in
   // the verdict comes from the database (it was graded there); this only works
   // out which option was picked, which was right, and what the explanation says.
-  const graded = useMemo(
-    () => (record && bank.length ? gradeAttempt(record.answers ?? {}, bank) : null),
-    [record, bank]
-  );
+  const graded = useMemo(() => {
+    if (!record || !bank.length) return null;
+
+    // Review only the questions this attempt was sat on. A null questionIds is
+    // an attempt recorded before exams were configurable, meaning the whole
+    // bank.
+    const ids = record.questionIds;
+    const paper = ids?.length
+      ? ids.map((id) => bank.find((q) => q.id === id)).filter(Boolean)
+      : bank;
+
+    return gradeAttempt(record.answers ?? {}, paper);
+  }, [record, bank]);
 
   if (loading) {
     return (
@@ -309,7 +320,7 @@ export default function Results() {
               <QuestionCard
                 key={r.question.id}
                 question={r.question}
-                index={bank.findIndex((q) => q.id === r.question.id)}
+                index={graded.results.findIndex((x) => x.question.id === r.question.id)}
                 total={graded.total}
                 selected={r.given}
                 review
