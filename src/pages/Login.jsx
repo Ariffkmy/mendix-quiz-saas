@@ -8,9 +8,15 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 /**
  * Sign in.
  *
- * The magic link is the default path and works for every account, including the
- * ones created at /register. Those accounts also have a password, so there is a
- * toggle for people who would rather type it than wait for an email.
+ * Password is the default path because it sends no email. Supabase's built-in
+ * mailer is capped at a couple of messages an hour project-wide, so defaulting
+ * to the magic link meant a handful of sign-in attempts locked everyone out
+ * with "email rate limit exceeded" — including people who had a password and
+ * never needed the email at all.
+ *
+ * The magic link stays available behind the toggle: it is the only way in for
+ * someone who has forgotten their password. Raising the cap means configuring
+ * custom SMTP on the Supabase project.
  */
 export default function Login() {
   const { user, signInWithEmail, signInWithPassword, isSupabaseConfigured } = useAuth();
@@ -19,7 +25,7 @@ export default function Login() {
 
   const from = location.state?.from ?? '/dashboard';
 
-  const [mode, setMode] = useState('link'); // link | password
+  const [mode, setMode] = useState('password'); // password | link
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [sent, setSent] = useState(false);
