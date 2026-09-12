@@ -107,6 +107,121 @@ function LegalMenu() {
   );
 }
 
+/**
+ * Header nav for phones.
+ *
+ * The desktop row carries up to seven items plus the wordmark, which overflows
+ * a 375px screen, so below `md` everything collapses behind one button. Shares
+ * LegalMenu's interaction rules: closes on navigation, on Escape, and on an
+ * outside click, and returns focus to the button afterwards.
+ */
+function MobileNav({ navLinks, user, email, onSignOut }) {
+  const [open, setOpen] = useState(false);
+  const containerRef = useRef(null);
+  const buttonRef = useRef(null);
+  const { pathname } = useLocation();
+
+  useEffect(() => setOpen(false), [pathname]);
+
+  useEffect(() => {
+    if (!open) return undefined;
+
+    const handlePointerDown = (e) => {
+      if (!containerRef.current?.contains(e.target)) setOpen(false);
+    };
+    const handleKeyDown = (e) => {
+      if (e.key !== 'Escape') return;
+      setOpen(false);
+      buttonRef.current?.focus();
+    };
+
+    document.addEventListener('pointerdown', handlePointerDown);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('pointerdown', handlePointerDown);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [open]);
+
+  const itemClass = ({ isActive }) =>
+    `block rounded-lg px-3 py-2.5 text-sm font-medium transition ${
+      isActive ? 'bg-brand-50 text-brand-700' : 'text-ink-700 hover:bg-slate-100'
+    }`;
+
+  return (
+    <div ref={containerRef} className="md:hidden">
+      <button
+        ref={buttonRef}
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+        aria-label={open ? 'Close menu' : 'Open menu'}
+        className="flex h-10 w-10 items-center justify-center rounded-lg text-ink-700 transition hover:bg-slate-100"
+      >
+        <svg className="h-5 w-5" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+          {open ? (
+            <path
+              d="M5 5l10 10M15 5L5 15"
+              stroke="currentColor"
+              strokeWidth="1.8"
+              strokeLinecap="round"
+            />
+          ) : (
+            <path
+              d="M3 6h14M3 10h14M3 14h14"
+              stroke="currentColor"
+              strokeWidth="1.8"
+              strokeLinecap="round"
+            />
+          )}
+        </svg>
+      </button>
+
+      {open && (
+        <div className="absolute inset-x-0 top-16 z-50 border-b border-slate-200 bg-white shadow-xl">
+          <nav className="mx-auto max-w-6xl space-y-1 px-4 py-4 sm:px-6" aria-label="Main">
+            {navLinks.map((link) => (
+              <NavLink key={link.to} to={link.to} className={itemClass}>
+                {link.label}
+              </NavLink>
+            ))}
+
+            <div className="!mt-3 border-t border-slate-200 pt-3">
+              {LEGAL_PAGES.map((link) => (
+                <NavLink key={link.to} to={link.to} className={itemClass}>
+                  {link.label}
+                </NavLink>
+              ))}
+            </div>
+
+            <div className="!mt-3 border-t border-slate-200 pt-3">
+              {user ? (
+                <>
+                  <p className="truncate px-3 pb-2 text-xs text-ink-500" title={email}>
+                    {email}
+                  </p>
+                  <button type="button" onClick={onSignOut} className="btn-secondary w-full">
+                    Sign out
+                  </button>
+                </>
+              ) : (
+                <div className="space-y-2">
+                  <Link to="/login" className="btn-secondary w-full">
+                    Sign in
+                  </Link>
+                  <Link to="/register" className="btn-primary w-full">
+                    Start free
+                  </Link>
+                </div>
+              )}
+            </div>
+          </nav>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function Header() {
   const { user, email, isAdmin, signOut } = useAuth();
   const navigate = useNavigate();
@@ -120,6 +235,20 @@ function Header() {
     await signOut();
     navigate('/');
   };
+
+  // One source of truth for both navs — a link added to only one of them is the
+  // classic way a mobile menu drifts out of date.
+  const navLinks = [
+    ...(user
+      ? [
+          { to: '/dashboard', label: 'Dashboard' },
+          { to: '/quiz', label: 'Exam' },
+          { to: '/study', label: 'Study' },
+          { to: '/results', label: 'Results' },
+        ]
+      : []),
+    ...(isAdmin ? [{ to: '/admin', label: 'Admin' }] : []),
+  ];
 
   const linkClass = ({ isActive }) =>
     `rounded-lg px-3 py-2 text-sm font-medium transition ${
@@ -136,53 +265,48 @@ function Header() {
             Exam in progress
           </span>
         ) : (
-          <nav className="flex items-center gap-1">
-            {user && (
-              <>
-                <NavLink to="/dashboard" className={linkClass}>
-                  Dashboard
+          <>
+            {/* Desktop nav. Seven items do not fit a phone, so below md they
+                collapse into the menu button beside this. */}
+            <nav className="hidden items-center gap-1 md:flex">
+              {navLinks.map((link) => (
+                <NavLink key={link.to} to={link.to} className={linkClass}>
+                  {link.label}
                 </NavLink>
-                <NavLink to="/quiz" className={linkClass}>
-                  Exam
-                </NavLink>
-                <NavLink to="/study" className={linkClass}>
-                  Study
-                </NavLink>
-                <NavLink to="/results" className={linkClass}>
-                  Results
-                </NavLink>
-              </>
-            )}
-            {isAdmin && (
-              <NavLink to="/admin" className={linkClass}>
-                Admin
-              </NavLink>
-            )}
-            <LegalMenu />
+              ))}
+              <LegalMenu />
 
-            {user ? (
-              <div className="ml-2 flex items-center gap-2">
-                <span
-                  className="hidden max-w-[12rem] truncate text-sm text-ink-500 lg:inline"
-                  title={email}
-                >
-                  {email}
-                </span>
-                <button type="button" onClick={handleSignOut} className="btn-secondary">
-                  Sign out
-                </button>
-              </div>
-            ) : (
-              <div className="ml-2 flex items-center gap-2">
-                <Link to="/login" className="btn-ghost">
-                  Sign in
-                </Link>
-                <Link to="/register" className="btn-primary">
-                  Start free
-                </Link>
-              </div>
-            )}
-          </nav>
+              {user ? (
+                <div className="ml-2 flex items-center gap-2">
+                  <span
+                    className="hidden max-w-[12rem] truncate text-sm text-ink-500 lg:inline"
+                    title={email}
+                  >
+                    {email}
+                  </span>
+                  <button type="button" onClick={handleSignOut} className="btn-secondary">
+                    Sign out
+                  </button>
+                </div>
+              ) : (
+                <div className="ml-2 flex items-center gap-2">
+                  <Link to="/login" className="btn-ghost">
+                    Sign in
+                  </Link>
+                  <Link to="/register" className="btn-primary">
+                    Start free
+                  </Link>
+                </div>
+              )}
+            </nav>
+
+            <MobileNav
+              navLinks={navLinks}
+              user={user}
+              email={email}
+              onSignOut={handleSignOut}
+            />
+          </>
         )}
       </div>
     </header>

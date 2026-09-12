@@ -136,6 +136,9 @@
 }
 .prose-kb code {
   @apply rounded bg-slate-100 px-1.5 py-0.5 font-mono text-[0.85em] text-brand-700;
+  /* Study content quotes XPath and log lines well over 100 characters with no
+     spaces, which would otherwise widen the page on a phone. */
+  overflow-wrap: anywhere;
 }
 .prose-kb pre {
   @apply my-4 overflow-x-auto rounded-xl bg-ink-900 p-4 text-sm text-slate-100;
@@ -146,8 +149,17 @@
 .prose-kb blockquote {
   @apply my-4 border-l-4 border-brand-300 bg-brand-50 py-2 pl-4 text-ink-700 italic;
 }
+/* Emitted by renderMarkdown() around every table. */
+.prose-kb .kb-table-scroll {
+  @apply my-4 overflow-x-auto;
+}
 .prose-kb table {
-  @apply my-4 w-full border-collapse text-sm;
+  @apply w-full border-collapse text-sm;
+}
+.prose-kb th,
+.prose-kb td {
+  /* Stops a long cell collapsing the other columns to nothing. */
+  @apply min-w-[8rem];
 }
 .prose-kb th {
   @apply border border-slate-300 bg-slate-100 px-3 py-2 text-left font-semibold;

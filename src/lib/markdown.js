@@ -41,7 +41,13 @@ function renderTable(rows) {
     .map((row) => `<tr>${cells(row).map((c) => `<td>${inline(c)}</td>`).join('')}</tr>`)
     .join('');
 
-  return `<table><thead><tr>${headHtml}</tr></thead><tbody>${bodyHtml}</tbody></table>`;
+  // Wrapped so a wide table scrolls inside its own box instead of pushing the
+  // page sideways on a phone. Several knowledge-base tables are far wider than
+  // a 375px screen.
+  return (
+    `<div class="kb-table-scroll"><table><thead><tr>${headHtml}</tr></thead>` +
+    `<tbody>${bodyHtml}</tbody></table></div>`
+  );
 }
 
 export function renderMarkdown(source) {
