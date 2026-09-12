@@ -3,60 +3,101 @@ import { Link, useNavigate } from 'react-router-dom';
 
 import { FEATURES, PRODUCT } from '../config';
 import { useAuth } from '../context/AuthContext.jsx';
-import { EXAM_MINUTES, PASS_THRESHOLD } from '../data/questions';
+import { PASS_THRESHOLD } from '../data/questions';
 import { useExamOverview } from '../hooks/useExamOverview';
 
 /* ------------------------------------------------------------------ data --- */
 
-/** Presentation metadata per exam module, keyed by the topic name in the bank. */
+/**
+ * Presentation metadata per exam module, keyed by the topic name in the bank.
+ *
+ * Must track the `## <topic>` headings in src/data/questions.md and
+ * questions-intermediate.md — a renamed module silently falls back to the
+ * generic card below rather than failing, so check this after editing a bank.
+ */
 const MODULE_META = {
-  'Advanced Domain Model Skills': {
+  // --- Advanced blueprint ---
+  'Advanced domain modeling': {
     emoji: '📘',
     short: 'Domain Model',
     body: 'System entities, associations, indexes and date-time handling done properly.',
   },
-  'Configure Advanced Security': {
+  'Memory and data model optimization': {
+    emoji: '🗄️',
+    short: 'Data & Memory',
+    body: 'Retrieves, commits, caching and the data-heavy questions people lose marks on.',
+  },
+  'Security and performance': {
     emoji: '🔒',
     short: 'Security',
     body: 'Module roles, entity access rules, XPath constraints and anonymous access.',
   },
-  'Constrain Your Data Using Advanced XPath': {
+  XPath: {
     emoji: '🔍',
-    short: 'Advanced XPath',
+    short: 'XPath',
     body: 'Tokens, functions and constraints that filter data without killing performance.',
   },
-  'Design and Publish a REST API': {
-    emoji: '🌐',
-    short: 'REST API',
-    body: 'Published services, operations, status codes and authentication microflows.',
-  },
-  'Error Handling': {
-    emoji: '⚠️',
-    short: 'Error Handling',
-    body: 'Rollback vs. continue, error variables and where transactions really end.',
-  },
-  'Master Modeling Microflows': {
-    emoji: '⚙️',
-    short: 'Microflows',
-    body: 'Loops, sub-microflows, java actions and the patterns reviewers expect.',
-  },
-  'Track Application Behavior with Logging': {
+  Logging: {
     emoji: '📊',
     short: 'Logging',
     body: 'Log levels, log nodes, custom messages and reading production behaviour.',
   },
-  'Win at Working with Data': {
-    emoji: '🗄️',
-    short: 'Working with Data',
-    body: 'Retrieves, commits, caching and the data-heavy questions people lose marks on.',
+  'User experience': {
+    emoji: '🎨',
+    short: 'User Experience',
+    body: 'Pages, navigation and the published interfaces people actually interact with.',
+  },
+  'Error handling': {
+    emoji: '⚠️',
+    short: 'Error Handling',
+    body: 'Rollback vs. continue, error variables and where transactions really end.',
+  },
+
+  // --- Intermediate blueprint ---
+  'Agile and Scrum': {
+    emoji: '🏃',
+    short: 'Agile & Scrum',
+    body: 'Sprints, roles, ceremonies and the delivery process the exam assumes.',
+  },
+  'Microflows and Nanoflows': {
+    emoji: '⚙️',
+    short: 'Microflows',
+    body: 'Loops, sub-microflows, nanoflows and where each one belongs.',
+  },
+  Security: {
+    emoji: '🛡️',
+    short: 'Security',
+    body: 'User roles, module roles and access rules from the ground up.',
+  },
+  'Domain Model': {
+    emoji: '🧱',
+    short: 'Domain Model',
+    body: 'Entities, attributes, associations and the modelling basics.',
+  },
+  'Pages, Layouts, and Atlas UI': {
+    emoji: '🖼️',
+    short: 'Pages & Atlas',
+    body: 'Layouts, building blocks and the Atlas design system.',
+  },
+  'Modules, App Directory, and Integration': {
+    emoji: '🔌',
+    short: 'Modules & Integration',
+    body: 'App structure, marketplace modules and connecting to other systems.',
+  },
+  'Languages and Translations': {
+    emoji: '🌍',
+    short: 'Languages',
+    body: 'Multilingual apps, language settings and translatable texts.',
   },
 };
 
-const FALLBACK_META = { emoji: '📕', short: '', body: 'A full module of the Advanced blueprint.' };
+const FALLBACK_META = {
+  emoji: '📕',
+  short: '',
+  body: 'A full module of the Mendix certification blueprint.',
+};
 
 const moduleMeta = (topic) => MODULE_META[topic] ?? FALLBACK_META;
-
-const TRUSTED_BY = ['Mendix', 'Siemens', 'Orangeleaf', 'CLEVR', 'Appronto', 'Flowfabric'];
 
 /*
  * The question count and module list come from `public.topics` in Supabase, so
@@ -72,22 +113,22 @@ const buildStats = ({ questionCount, topics }) => [
 
 const buildPricingFeatures = ({ questionCount, topics }) => [
   `Unlimited attempts at all ${questionCount} exam-style questions`,
-  `All ${topics.length} Advanced modules covered`,
-  `${EXAM_MINUTES}-minute timed exam simulation`,
+  `All ${topics.length} modules covered`,
+  'Timed exam simulation, or untimed practice — your choice',
   'Your score and pass/fail verdict on every attempt',
   'Detailed explanation for every single answer',
   'Topic-by-topic breakdown and progress analytics',
   'Full knowledge base study guides included',
 ];
 
-const buildFaq = ({ questionCount, topics }) => [
+const buildFaq = ({ topics }) => [
   {
     q: 'Is it really free?',
-    a: `Yes — all of it. Register with an email and a password, no card. You get unlimited sittings of the full ${questionCount}-question exam, ${EXAM_MINUTES} minutes on the clock, your score and pass/fail verdict, a module-by-module breakdown, every question you missed with its explanation, the written study guides, and a dashboard tracking it all over time. There is no paid tier and nothing held back.`,
+    a: `Yes — all of it. Register with an email and a password, no card. You get unlimited sittings at either certification level, a paper as short or as long as you want, timed at exam pace or not at all, plus your score and pass/fail verdict, a module-by-module breakdown, every question you missed with its explanation, the written study guides, and a dashboard tracking it all over time. There is no paid tier and nothing held back.`,
   },
   {
     q: 'What topics are covered?',
-    a: `All ${topics.length} modules of the Mendix Advanced blueprint: ${topics.join(', ')}. Every question is tagged to its module, and every module ships with a full written study guide.`,
+    a: `All ${topics.length} modules across the Mendix Intermediate and Advanced blueprints: ${topics.join(', ')}. Every question is tagged to its module, and you pick which level to sit.`,
   },
   {
     q: 'How is the exam scored?',
@@ -288,15 +329,9 @@ export default function Landing() {
 
         <div className="relative mx-auto grid max-w-6xl gap-14 px-4 py-20 sm:px-6 lg:grid-cols-2 lg:items-center lg:py-28">
           <div>
-            <span className="inline-flex items-center gap-2 rounded-full border border-accent-500/40 bg-accent-500/10 px-4 py-1.5 text-xs font-bold tracking-widest text-accent-300 uppercase">
-              <span className="h-1.5 w-1.5 rounded-full bg-accent-400" />
-              {topics.length} modules · {questionCount} questions · {EXAM_MINUTES} min
-            </span>
-
-            <h1 className="display-heading mt-6 text-4xl leading-[0.95] text-white sm:text-5xl lg:text-6xl">
-              Pass your Mendix{' '}
+            <h1 className="display-heading text-4xl leading-[0.95] text-white sm:text-5xl lg:text-6xl">
               <span className="bg-gradient-to-r from-accent-400 to-accent-200 bg-clip-text text-transparent">
-                Advanced
+                Mendix
               </span>{' '}
               certification
             </h1>
@@ -357,25 +392,6 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* ==================================================== SOCIAL PROOF === */}
-      <section className="bg-white">
-        <div className="mx-auto max-w-6xl px-4 py-14 sm:px-6">
-          <p className="text-center text-xs font-bold tracking-[0.2em] text-ink-500 uppercase">
-            Trusted by Mendix developers worldwide
-          </p>
-          <div className="mt-8 flex flex-wrap items-center justify-center gap-x-12 gap-y-6">
-            {TRUSTED_BY.map((name) => (
-              <span
-                key={name}
-                className="text-xl font-extrabold tracking-tight text-slate-300 grayscale transition hover:text-slate-400"
-              >
-                {name}
-              </span>
-            ))}
-          </div>
-        </div>
-      </section>
-
       {/* ================================================ FEATURE HIGHLIGHT === */}
       <section className="relative overflow-hidden bg-accent-500">
         <DotGrid className="pointer-events-none absolute right-8 bottom-8 hidden h-32 w-32 lg:block" />
@@ -390,7 +406,7 @@ export default function Landing() {
               Master every module
             </h2>
             <p className="mt-6 max-w-lg text-lg leading-relaxed text-white/85">
-              Every question is written from the official Advanced course material — same phrasing,
+              Every question is written from the official Mendix course material — same phrasing,
               same plausible-but-wrong distractors. Answer one, and the explanation cites the exact
               module it came from, so a wrong answer sends you straight to the right page.
             </p>
@@ -599,13 +615,13 @@ export default function Landing() {
                   MX
                 </span>
                 <span className="leading-tight">
-                  <span className="block text-sm font-bold text-white">Mendix Advanced</span>
+                  <span className="block text-sm font-bold text-white">Mendix Certification</span>
                   <span className="block text-xs text-white/50">Exam Simulator</span>
                 </span>
               </div>
               <p className="mt-5 text-sm leading-relaxed text-white/50">
-                Independent practice material for the Mendix Advanced Developer certification. Not
-                affiliated with or endorsed by Mendix.
+                Independent practice material for the Mendix Intermediate and Advanced Developer
+                certifications. Not affiliated with or endorsed by Mendix.
               </p>
             </div>
 

@@ -31,7 +31,10 @@ export function useExamOverview() {
         if (!active || !rows.length) return;
         setOverview({
           questionCount: rows.reduce((sum, t) => sum + (t.question_count ?? 0), 0),
-          topics: rows.map((t) => t.name),
+          // Deduplicated: the Intermediate and Advanced blueprints both have an
+          // "XPath" module, and this list is rendered as module names — showing
+          // it twice would be wrong, and duplicates a React key.
+          topics: [...new Set(rows.map((t) => t.name))],
           loading: false,
         });
       })
