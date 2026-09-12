@@ -3,12 +3,13 @@
   "private": true,
   "version": "1.0.0",
   "type": "module",
-  "description": "Mendix Advanced Developer Certification exam simulator — a paid practice-exam SaaS.",
+  "description": "Mendix Advanced Developer Certification exam simulator \u2014 a paid practice-exam SaaS.",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "seed": "node scripts/seed-question-bank.mjs"
+    "seed": "node scripts/seed-question-bank.mjs",
+    "lint": "eslint ."
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.48.1",
@@ -22,6 +23,9 @@
     "@types/react": "^19.0.7",
     "@types/react-dom": "^19.0.3",
     "@vitejs/plugin-react": "^4.3.4",
+    "eslint": "^9.39.5",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "globals": "^17.12.0",
     "tailwindcss": "^4.0.0",
     "vite": "^6.0.7"
   }

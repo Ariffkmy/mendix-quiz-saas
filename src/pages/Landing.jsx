@@ -145,6 +145,9 @@ function DotGrid({ className = '', dotClass = 'fill-white/25' }) {
  * band) with different surface treatments.
  */
 function QuizMockup({ tone = 'dark' }) {
+  // Its own hook call rather than a prop — the mockup is rendered from two
+  // different sections and only needs the one number.
+  const { questionCount } = useExamOverview();
   const dark = tone === 'dark';
 
   return (
@@ -492,6 +495,47 @@ export default function Landing() {
                 </p>
               </div>
             </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ========================================================== MODULES === */}
+      <section id="modules" className="scroll-mt-20 bg-accent-50">
+        <div className="mx-auto max-w-6xl px-4 py-20 sm:px-6">
+          <div className="max-w-2xl">
+            <span className="text-xs font-bold tracking-[0.2em] text-accent-600 uppercase">
+              The blueprint
+            </span>
+            <h2 className="display-heading mt-3 text-3xl text-ink-900 sm:text-4xl">
+              {topics.length} modules, nothing skipped
+            </h2>
+            <p className="mt-4 text-lg text-ink-500">
+              Every question is tagged to a module, and every module ships with a full written study
+              guide you keep for life.
+            </p>
+          </div>
+
+          <div className="mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+            {topics.map((topic) => {
+              const meta = moduleMeta(topic);
+              return (
+                <div
+                  key={topic}
+                  className="group rounded-3xl border border-white bg-white p-6 shadow-sm transition hover:-translate-y-1 hover:border-accent-200 hover:shadow-xl"
+                >
+                  <span
+                    className="flex h-12 w-12 items-center justify-center rounded-2xl bg-accent-50 text-2xl transition group-hover:bg-accent-100"
+                    aria-hidden="true"
+                  >
+                    {meta.emoji}
+                  </span>
+                  <h3 className="mt-5 leading-snug font-bold text-ink-900">
+                    {meta.short || topic}
+                  </h3>
+                  <p className="mt-2 text-sm leading-relaxed text-ink-500">{meta.body}</p>
+                </div>
+              );
+            })}
           </div>
         </div>
       </section>
