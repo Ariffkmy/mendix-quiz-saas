@@ -42,6 +42,7 @@ export default function Quiz() {
   const [level, setLevel] = useState(() => loadInProgress()?.level ?? null);
   const [current, setCurrent] = useState(0);
   const [confirming, setConfirming] = useState(false);
+  const [abandoning, setAbandoning] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState('');
   const submittedRef = useRef(false);
@@ -231,13 +232,33 @@ export default function Quiz() {
     [attempt, user, navigate, refreshEntitlement]
   );
 
+  /**
+   * Walk away without submitting.
+   *
+   * Nothing is graded and nothing is recorded — the attempt simply stops
+   * existing. That is only reasonable because attempts are unlimited: there is
+   * no allowance being spent, so quitting costs the candidate nothing and a
+   * half-finished paper is not worth keeping in their history.
+   */
+  const abandonExam = useCallback(() => {
+    // Stops the beforeunload guard and the timer's expiry callback from firing
+    // on the way out.
+    submittedRef.current = true;
+    clearInProgress();
+    setAttempt(null);
+    setAbandoning(false);
+    setConfirming(false);
+    setCurrent(0);
+    navigate('/dashboard');
+  }, [navigate]);
+
   const handleExpire = useCallback(() => {
     submit('timeout');
   }, [submit]);
 
   // Keyboard shortcuts: arrows to navigate, 1–4 or A–D to answer.
   useEffect(() => {
-    if (!attempt || confirming) return;
+    if (!attempt || confirming || abandoning) return;
 
     const onKeyDown = (e) => {
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
@@ -259,7 +280,7 @@ export default function Quiz() {
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [attempt, confirming, current, goTo, question]);
+  }, [attempt, confirming, abandoning, current, goTo, question]);
 
   // Warn before an accidental tab close mid-exam.
   useEffect(() => {
@@ -452,6 +473,7 @@ export default function Quiz() {
                 ? 'This run is untimed — the clock counts up so you can still see how long you took.'
                 : `The exam auto-submits when the ${plannedMinutes} minutes are up. Unanswered questions count as incorrect.`,
               'Keyboard shortcuts: ← → to navigate, 1–4 or A–D to answer.',
+              'You can end the exam at any point. Discarding records nothing, and attempts are unlimited.',
             ].map((rule) => (
               <li key={rule} className="flex items-start gap-3">
                 <span className="mt-1.5 h-1.5 w-1.5 flex-none rounded-full bg-brand-500" />
@@ -493,6 +515,14 @@ export default function Quiz() {
           <ProgressBar value={answeredCount} max={paper.length} label="Exam progress" />
         </div>
         <Timer deadline={attempt.deadline} startedAt={attempt.startedAt} onExpire={handleExpire} />
+        <button
+          type="button"
+          onClick={() => setAbandoning(true)}
+          className="btn-ghost"
+          disabled={submitting}
+        >
+          End exam
+        </button>
         <button
           type="button"
           onClick={() => setConfirming(true)}
@@ -581,6 +611,70 @@ export default function Quiz() {
         <p role="alert" className="mt-4 text-sm text-rose-600">
           {submitError}
         </p>
+      )}
+
+      {/* End-without-submitting confirmation */}
+      {abandoning && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-ink-900/50 p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="abandon-title"
+        >
+          <div className="card w-full max-w-md p-6 sm:p-8">
+            <h2 id="abandon-title" className="text-xl font-bold text-ink-900">
+              End this exam?
+            </h2>
+
+            <p className="mt-3 text-ink-500">
+              {answeredCount === 0 ? (
+                <>Nothing is recorded and no attempt is saved.</>
+              ) : (
+                <>
+                  Your{' '}
+                  <strong className="text-ink-900">
+                    {answeredCount} answer{answeredCount === 1 ? '' : 's'}
+                  </strong>{' '}
+                  will be discarded. Nothing is graded and no attempt is saved.
+                </>
+              )}
+            </p>
+
+            {/* Submitting is almost always the better option when there is work
+                to lose, so offer it here rather than making them back out. */}
+            {answeredCount > 0 && (
+              <p className="mt-3 rounded-lg bg-slate-100 p-3 text-sm text-ink-700">
+                You can submit instead and still see how you did — unanswered questions just count
+                as incorrect. Attempts are unlimited either way.
+              </p>
+            )}
+
+            <div className="mt-7 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+              <button type="button" onClick={() => setAbandoning(false)} className="btn-secondary">
+                Keep working
+              </button>
+              {answeredCount > 0 && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAbandoning(false);
+                    setConfirming(true);
+                  }}
+                  className="btn-secondary"
+                >
+                  Submit instead
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={abandonExam}
+                className="btn-danger"
+              >
+                Discard and exit
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Submit confirmation */}

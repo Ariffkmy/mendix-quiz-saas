@@ -69,6 +69,11 @@
   @apply btn text-ink-700 hover:bg-slate-100;
 }
 
+/* Destructive confirmations only — discarding an exam in progress. */
+@utility btn-danger {
+  @apply btn bg-rose-600 text-white shadow-sm hover:bg-rose-700 active:bg-rose-800;
+}
+
 /* Pill-shaped marketing buttons (landing page). */
 @utility btn-pill {
   @apply inline-flex items-center justify-center gap-2 rounded-full px-7 py-3.5 text-base
