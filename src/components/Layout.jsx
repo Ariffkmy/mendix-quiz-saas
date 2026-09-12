@@ -12,7 +12,7 @@ function Logo() {
         MX
       </span>
       <span className="leading-tight">
-        <span className="block text-sm font-bold text-ink-900">Mendix Advanced</span>
+        <span className="block text-sm font-bold text-ink-900">Mendix Practice</span>
         <span className="block text-xs text-ink-500">Exam Simulator</span>
       </span>
     </Link>

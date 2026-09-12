@@ -333,7 +333,7 @@ export default function Landing() {
               <span className="bg-gradient-to-r from-accent-400 to-accent-200 bg-clip-text text-transparent">
                 Mendix
               </span>{' '}
-              certification
+              certification practice
             </h1>
 
             <p className="mt-6 max-w-xl text-lg leading-relaxed text-white/70">
@@ -615,7 +615,7 @@ export default function Landing() {
                   MX
                 </span>
                 <span className="leading-tight">
-                  <span className="block text-sm font-bold text-white">Mendix Certification</span>
+                  <span className="block text-sm font-bold text-white">Mendix Practice</span>
                   <span className="block text-xs text-white/50">Exam Simulator</span>
                 </span>
               </div>
