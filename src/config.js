@@ -41,3 +41,45 @@ export const EXAM_OVERVIEW_FALLBACK = {
     'Win at Working with Data',
   ],
 };
+
+/**
+ * Trader identity, published on every legal page.
+ *
+ * This is not decoration. An online service must identify itself: EU e-Commerce
+ * Directive art. 5, the UK equivalent, and Malaysia's Electronic Commerce Act
+ * 2006 s.6 all require a name, a geographic address and a working electronic
+ * contact.
+ *
+ * The product is free, so the consumer-contract rules bite less hard than they
+ * would on a paid sale — but the identification duty applies to a commercial
+ * online service either way, and the privacy policy needs a real controller to
+ * name.
+ *
+ * ⚠️ EVERY VALUE BELOW IS A PLACEHOLDER. Fill them in — via the env vars, or by
+ * editing the fallbacks. Shipping a "[Your …]" string to a real visitor is
+ * worse than shipping nothing.
+ */
+export const BUSINESS = {
+  /** Registered company name, or your own full legal name if a sole trader. */
+  legalName: import.meta.env.VITE_BUSINESS_LEGAL_NAME || '[Your registered business name]',
+  /** Trading name shown to customers. Safe to leave as the product name. */
+  tradingName: import.meta.env.VITE_BUSINESS_TRADING_NAME || 'Mendix Exam Simulator',
+  /** Company / business registration number, if you have one. */
+  registrationNumber: import.meta.env.VITE_BUSINESS_REG_NO || '',
+  /** Full postal address. A PO box is not sufficient in the EU/UK. */
+  address: import.meta.env.VITE_BUSINESS_ADDRESS || '[Street address, city, postcode, country]',
+  /** Country whose law governs the contract and whose courts hear disputes. */
+  country: import.meta.env.VITE_BUSINESS_COUNTRY || 'Malaysia',
+  /** Where privacy questions and data-subject requests go. */
+  privacyEmail: import.meta.env.VITE_PRIVACY_EMAIL || '',
+  /** Sales-tax / VAT / SST number, if you are registered. Blank if not. */
+  taxNumber: import.meta.env.VITE_BUSINESS_TAX_NO || '',
+};
+
+/**
+ * The date the current wording of the legal pages took effect.
+ *
+ * Bump it whenever you change the substance of a policy — a dated version is
+ * what lets you show which terms a given customer agreed to.
+ */
+export const LEGAL_EFFECTIVE_DATE = '12 September 2026';

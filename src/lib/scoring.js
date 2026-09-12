@@ -1,4 +1,5 @@
-import { LETTERS, PASS_THRESHOLD } from '../data/questions';
+import { PASS_THRESHOLD } from '../data/questions';
+import { LETTERS } from './parseQuestions';
 
 /**
  * Grade an answer map against a question list, for display only.

@@ -15,6 +15,13 @@ import Results from './pages/Results.jsx';
 // Split out of the main bundle: Study carries the whole knowledge base, and
 // Admin is only ever reached by a handful of accounts.
 const Study = lazy(() => import('./pages/Study.jsx'));
+
+// Policy pages are rarely visited and carry a lot of prose, so they stay out of
+// the main bundle.
+const Terms = lazy(() => import('./pages/legal/Terms.jsx'));
+const Privacy = lazy(() => import('./pages/legal/Privacy.jsx'));
+const Disclaimer = lazy(() => import('./pages/legal/Disclaimer.jsx'));
+const Contact = lazy(() => import('./pages/legal/Contact.jsx'));
 const Admin = lazy(() => import('./pages/Admin.jsx'));
 
 function PageFallback() {
@@ -32,6 +39,40 @@ export default function App() {
         <Route path="/" element={<Landing />} />
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
+
+        {/* Public policy pages. */}
+        <Route
+          path="/terms"
+          element={
+            <Suspense fallback={<PageFallback />}>
+              <Terms />
+            </Suspense>
+          }
+        />
+        <Route
+          path="/privacy"
+          element={
+            <Suspense fallback={<PageFallback />}>
+              <Privacy />
+            </Suspense>
+          }
+        />
+        <Route
+          path="/disclaimer"
+          element={
+            <Suspense fallback={<PageFallback />}>
+              <Disclaimer />
+            </Suspense>
+          }
+        />
+        <Route
+          path="/contact"
+          element={
+            <Suspense fallback={<PageFallback />}>
+              <Contact />
+            </Suspense>
+          }
+        />
 
         {/* Everything below needs an account. The product is free, so that is
             the only check. */}

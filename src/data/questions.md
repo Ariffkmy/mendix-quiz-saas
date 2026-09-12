@@ -1,20 +1,38 @@
 # Mendix Advanced Developer Certification — Question Bank
 
-<!-- Authoring source for the exam question bank.
+<!-- Authoring source for the Advanced exam bank.
 
      This file is NOT bundled into the app. It is parsed by
      src/lib/parseQuestions.js and pushed into Supabase by `npm run seed`
-     (scripts/seed-question-bank.mjs), which is what the app reads. Bundling it
-     used to ship every correct answer to the browser.
+     (scripts/seed-question-bank.mjs), which is what the app reads.
 
      Edit here, then re-run `npm run seed`. The seed is a mirror: questions
      removed from this file are deleted from the database.
 
-     Format: `## <topic>`, then `### <id>` + question text, four `- A.`..`- D.`
-     options, `**Answer:** <letter>`, `**Source:** <explanation>` and an
-     optional `**Tip:** <short revision pointer>`. Ids must be unique. -->
+     Three question shapes, inferred from the layout — there is no type marker
+     to keep in sync:
 
-## Advanced Domain Model Skills
+     single      two to four `- A.`..`- D.` options, one correct.
+
+     true-false  exactly two options, `- A. True` and `- B. False`, in that
+                 order. Write the question text as an assertion to be judged.
+
+     roman       numbered `- I.`..`- V.` statements between the question text
+                 and the options; the `- A.`..`- D.` options then name the
+                 combinations ("I and III only"). The stem must come BEFORE the
+                 statements — text after the first statement is not parsed.
+
+     Every question needs `**Answer:** <letter>` and `**Source:** <explanation>`,
+     and may carry `**Tip:** <short revision pointer>`. Ids must be unique across
+     BOTH banks — question ids are the primary key and are not namespaced by
+     level.
+
+     Parsing fails on out-of-order letters or numerals, a duplicate id, an answer
+     that is not among the options, and on a roman question whose options never
+     reference its statements. -->
+
+
+## Advanced domain modeling
 
 ### adm-1
 
@@ -44,14 +62,12 @@ A DateTime attribute has Localize set to No. The date displayed in the client is
 
 ### adm-3
 
-True or false: making Goalkeeper a specialization of Player results in a single database table holding all the attributes of both entities.
+Making Goalkeeper a specialization of Player results in a single database table holding all the attributes of both entities.
 
-- A. True — Mendix flattens the hierarchy into one table for performance
-- B. True — but only when the specialization adds no new attributes
-- C. False — inheritance is stored as two separate tables linked by a shared, synchronized ID
-- D. False — inheritance creates three tables, just like a 1-1 association
+- A. True
+- B. False
 
-**Answer:** C
+**Answer:** B
 
 **Source:** Module 2 — Working with Inheritance. Inheritance is stored as two tables (generalization + specialization) sharing a synchronized primary key. A 1-1 association is the three-table structure.
 
@@ -70,14 +86,19 @@ A developer has a microflow parameter typed as the generalization Player and nee
 
 ### adm-5
 
-Which of the following is NOT a reason the course gives for creating a module-specific specialization of System.Image instead of using System.Image directly?
+Which combination lists only the valid reasons for creating a module-specific specialization of System.Image instead of using System.Image directly?
 
-- A. Performance — a specialization stores binary contents in fewer database tables
-- B. Security — entity access can be scoped to your own specialization
-- C. Maintainability — file-handling logic stays contained and upgrade-safe
-- D. Purpose — you can add your own attributes and associations
+- I. Purpose — you can add your own attributes and associations
+- II. Performance — a specialization stores binary contents in fewer database tables
+- III. Security — entity access can be scoped to your own specialization
+- IV. Maintainability — file-handling logic stays contained and upgrade-safe
 
-**Answer:** A
+- A. I, II and III only
+- B. I, III and IV only
+- C. II, III and IV only
+- D. I, II, III and IV
+
+**Answer:** B
 
 **Source:** Module 3 — System Entities. The three stated reasons are purpose, security and maintainability. Specializing actually adds a table; it is not a storage/performance optimization.
 
@@ -96,29 +117,21 @@ Where are the contents of a System.FileDocument stored by default, and what is t
 
 ### adm-7
 
-Which two statements about modelling a many-to-many relationship are correct, according to the course benchmark? (Pick the option that states them both.)
+Which combination of statements about modelling a many-to-many relationship is correct?
 
-- A. A plain reference set is fastest, and joining entities should only be used for extra attributes
-- B. A reference set "both" is fastest, and a joining entity adds unnecessary complexity
-- C. A joining entity is roughly 3–4x faster than a plain reference set, and reference set "both" is the slowest option
-- D. All three options perform identically; the choice is purely stylistic
+- I. A joining entity is roughly 3–4x faster than a plain reference set
+- II. Reference set "both" (*-*) is the slowest and most expensive option
+- III. A plain reference set is the fastest of the three approaches
+- IV. All three approaches perform identically; the choice is purely stylistic
 
-**Answer:** C
+- A. I and II only
+- B. I and III only
+- C. II and IV only
+- D. III and IV only
+
+**Answer:** A
 
 **Source:** Module 4 — Associations and Reference Sets. The PerformanceTest benchmark showed the joining entity pattern roughly 3–4x faster than a plain reference set, with reference set "both" (*-*) the slowest and most expensive option.
-
-### adm-8
-
-Which XPath condition can make effective use of a database index on the constrained attribute?
-
-- A. [contains(Name, 'washer')]
-- B. [ends-with(Name, 'er')]
-- C. [not(Active)]
-- D. [starts-with(ProductNumber, 'BK')]
-
-**Answer:** D
-
-**Source:** Module 5 — Indexes. Indexes work best with Equals or Starts-with conditions; Contains and Ends-with cannot use the index efficiently.
 
 ### adm-9
 
@@ -135,42 +148,14 @@ In the four-stage rocket data-conversion approach, why does Stage 4 delete the o
 
 ### adm-10
 
-A developer adds a new entity and two new associations to a live production domain model. What does the course say about the data conversion?
+A developer adds a new entity and two new associations to a live production domain model. Does this structural change require a custom data-conversion microflow?
 
-- A. Nothing is needed — structural changes are handled automatically by Mendix
-- B. A custom conversion microflow is always required for structural changes
-- C. Only a type-conversion microflow is needed; the structure syncs itself
-- D. The database must be dropped and recreated from the new model
+- A. True
+- B. False
 
-**Answer:** B
+**Answer:** A
 
 **Source:** Module 5 — Data Conversions. Type changes are partially handled automatically (a custom microflow is still recommended); structural changes always require a custom conversion microflow.
-
-### adm-11
-
-The self-reference Apprentice_Buddy exists on Player. A list view inside a data view on a Player must show that player's buddy (not their apprentices). Which XPath is correct?
-
-- A. [SoccerSquad.Apprentice_Buddy = '[%CurrentObject%]']
-- B. [reversed(SoccerSquad.Apprentice_Buddy) = '[%CurrentObject%]']
-- C. [SoccerSquad.Apprentice_Buddy [reversed()] = '[%CurrentObject%]']
-- D. [SoccerSquad.Apprentice_Buddy = '[%CurrentUser%]'] [reversed()]
-
-**Answer:** C
-
-**Source:** Module 6 — Self References. The plain constraint returns the apprentices of the current object; adding [reversed()] immediately after the self-reference step flips the direction so the buddy is returned.
-
-### adm-12
-
-Which statement about the [reversed()] expression is true?
-
-- A. It reverses the direction of every association in the whole XPath expression
-- B. It reverses the sort order of the returned list
-- C. It can be used on any association whose two ends have the same cardinality
-- D. It works only on self-references and affects only the one association it is attached to
-
-**Answer:** D
-
-**Source:** Module 6 — Self References. [reversed()] applies only to the single association step it is attached to and is only needed for self-references — for associations between two different entities Mendix determines the join direction itself.
 
 ### adm-13
 
@@ -185,7 +170,278 @@ A DateTime attribute is NOT localized. On the application server, which expressi
 
 **Source:** Module 7 — Date Magic on the Application Server. Rule: localized attribute → non-UTC expression; non-localized attribute → UTC expression. Mismatching them silently shifts the value by the acting user’s offset.
 
-## Configure Advanced Security
+### mf-4
+
+What is the easiest way to determine the name of the day of the week for a given date?
+
+- A. Use formatDateTime($date, 'EEEE')
+- B. Compute daysBetween($date, [%BeginOfCurrentWeek%]) and map the number with if-then-else
+- C. Use the [%CurrentDayOfWeek%] token
+- D. Use a Rule returning an enumeration of weekdays
+
+**Answer:** A
+
+**Source:** Module 2.5 / Knowledge Check. formatDateTime with pattern 'EEEE' (or 'E' for the abbreviation) is far simpler than manual date math.
+
+
+## Memory and data model optimization
+
+### mf-1
+
+The list operation 'tail' grabs the last element in the list.
+
+- A. True
+- B. False
+
+**Answer:** B
+
+**Source:** Module 3.3. Tail returns the list except for the first element(s) — 'the last element' is the common misconception the course explicitly flags. Head returns the first n objects.
+
+### mf-2
+
+Which combination of statements about Rules is correct?
+
+- I. A rule always returns a Boolean or an Enumeration
+- II. A rule can be used directly inside a Decision
+- III. A rule can commit objects to the database
+- IV. A rule can show a page or a message to the user
+
+- A. I and II only
+- B. III and IV only
+- C. I, II and III only
+- D. II, III and IV only
+
+**Answer:** A
+
+**Source:** Module 4.5. A Rule always returns a Boolean or Enumeration and can be used directly inside a Decision. Rules cannot change data, interact with the client, call web services, generate documents, or import XML.
+
+### mf-5
+
+A developer needs an associated object, but the association may be empty. Which approach is most efficient?
+
+- A. Retrieve the object first, then check whether the result is empty
+- B. Use a decision to check whether the association exists, and only retrieve if it does
+- C. Always retrieve and rely on the null-safe expression operators downstream
+- D. Retrieve from database with an XPath constraint instead of by association
+
+**Answer:** B
+
+**Source:** Module 2 Knowledge Check Q4. Checking the association first avoids an unnecessary retrieve, which is more efficient than "retrieve first, then check if empty".
+
+### mf-6
+
+Which combination of statements about lists in a microflow is correct?
+
+- I. A list can originate from a Retrieve action
+- II. A list can originate from creating a new list
+- III. A list can originate from an input parameter
+- IV. To empty a list you must remove its objects one at a time
+
+- A. I and IV only
+- B. I, II and III only
+- C. II, III and IV only
+- D. I, III and IV only
+
+**Answer:** B
+
+**Source:** Module 3.2. Those are the three list origins. Change List → Clear empties a list in one step, so IV is wrong; looping an empty list simply performs zero iterations.
+
+### mf-7
+
+A microflow must count a few thousand Customers that are known to exist in the database. What is the best approach?
+
+- A. Loop over the customers and increment an integer variable
+- B. Use a Rule returning the count as an integer
+- C. Retrieve in batches of 250 and sum the batch counts
+- D. Retrieve all customers and use a List Aggregation Count directly after the retrieve
+
+**Answer:** D
+
+**Source:** Module 3.4 / Knowledge Check. A List Aggregation placed directly after a Retrieve is automatically optimized into a single lightweight database query, staying safe even for large lists.
+
+### mf-8
+
+A loop currently finds the most expensive OrderLine using Aggregate List (max) plus a matching loop. Which approach is most efficient?
+
+- A. Sort descending on SellingPrice, then Head to take the first object
+- B. Filter on the max price, then use Find
+- C. Use Tail after sorting ascending
+- D. Replace the loop with an Intersect list operation
+
+**Answer:** A
+
+**Source:** Module 3.4.1. The Sort-then-Head pattern is the general-purpose replacement for "loop to find the min/max item".
+
+### mf-9
+
+A sub-microflow called inside a loop contains a Commit activity. This is acceptable, because committing on every iteration keeps the data consistent.
+
+- A. True
+- B. False
+
+**Answer:** B
+
+**Source:** Module 4.4.1 key rule: never put a Commit activity inside a loop — it causes many database round-trips and drastically hurts performance. Batch the changes and commit the whole list once in the main microflow.
+
+### mf-10
+
+Which commit strategy is correct for objects in sub-microflows?
+
+- A. Always commit inside the sub-microflow, never in the caller
+- B. Commit in the sub-microflow for objects passed in as parameters; commit in the caller for objects created inside
+- C. Commit in the sub-microflow for objects created or retrieved inside it that are not passed out; commit in the main microflow for objects passed in as input parameters
+- D. Never commit in either — always use auto-commit behavior
+
+**Answer:** C
+
+**Source:** Module 4.4 — Committing Inside or Outside of a Sub-Microflow. Those are the two stated rules.
+
+### mf-11
+
+A main microflow calls three sub-microflows, and each one retrieves the same Customer entity from the database. Should this change?
+
+- A. No — each sub-microflow should be self-contained
+- B. No — the object cache makes the extra retrieves free
+- C. Yes — merge the three sub-microflows into one so the retrieve happens once
+- D. Yes — retrieve once in the main microflow and pass the Customer to all three as an input parameter
+
+**Answer:** D
+
+**Source:** Module 4 Knowledge Check Q2 / 4.4.3. Avoid unnecessary retrieves in sub-microflows: pass data already available in the main flow as an input parameter.
+
+### data-1
+
+A retrieve by association will always be an in-memory retrieve.
+
+- A. True
+- B. False
+
+**Answer:** B
+
+**Source:** Module 3.2. The Runtime converts a by-association retrieve into a database retrieve when the data isn't already cached — across chained associations this can produce an N+1 pattern of many small queries.
+
+### data-2
+
+What is an important rule to keep in mind when creating effective indexes over multiple attributes?
+
+- A. The index should have the same order of attributes as used in the search and retrieve queries
+- B. The index should list the attributes in alphabetical order
+- C. The index should always include a Boolean attribute to split the table evenly
+- D. The index should be defined on non-persistable entities for best performance
+
+**Answer:** A
+
+**Source:** Module 3.4. Indexes are ordered — queries should filter on the attributes in the same order as the index. If constrained by only one attribute, that attribute must be first in the index to benefit.
+
+### data-3
+
+Which of the following is NOT a possible source of data for a microflow?
+
+- A. An input parameter received from the client or a calling microflow
+- B. A page passed as an input parameter by another microflow
+- C. The return value of a sub-microflow or integration activity
+- D. An object created inside the microflow
+
+**Answer:** B
+
+**Source:** Module 3 Knowledge Check Q1. Pages are not a valid microflow parameter type; the four real sources are input parameters, retrieve actions, objects created in-flow and return values.
+
+### data-4
+
+A microflow must read the value that is actually committed in the database, ignoring a newer uncommitted change held in the transaction cache. Which retrieve should be used?
+
+- A. By association — the cache always mirrors the database
+- B. Either, since Mendix always refreshes the cache before a retrieve
+- C. From database — an association retrieve may return cached, not-yet-committed values
+- D. By association, followed by a Rollback activity
+
+**Answer:** C
+
+**Source:** Module 3.2 — Difference in value. A database retrieve always returns the actual committed values; an association retrieve may serve recent, uncommitted changes from the object cache.
+
+### data-5
+
+A data grid uses the Database source with the constraint Status Equals ‘Bronze’. The same grid is switched to XPath with [Status = ‘Bronze’]. What happens to the generated SQL?
+
+- A. The XPath version generates an extra join
+- B. The Database version generates a lighter query without a WHERE clause
+- C. The Database version is executed in memory instead of on the database
+- D. Both generate exactly the same SQL query
+
+**Answer:** D
+
+**Source:** Module 2.4.1. Both approaches produce identical SQL — the choice is about ease of use, offline support and constraint complexity, not performance.
+
+### data-6
+
+The Database data source option can specify constraints that span multiple entities.
+
+- A. True
+- B. False
+
+**Answer:** B
+
+**Source:** Module 2 Knowledge Check Q4. Spanning multiple entities is something only XPath can do; the Database option allows only simple constraints on the retrieved entity.
+
+### data-7
+
+A batch process retrieves 10,000 Products using Limit and Offset. Records are being skipped. What is the most likely root cause?
+
+- A. The batch size of 250 is too small for the dataset
+- B. An attribute that changes during the run is part of the retrieve constraint, so the underlying set shifts between iterations
+- C. The retrieve is by association instead of from database
+- D. The offset variable is an Integer instead of a Long
+
+**Answer:** B
+
+**Source:** Module 3.3.1. Rule 1: when using Limit and Offset together, attributes that can change during the run must not be part of the constraint, or records get skipped as the result set shifts.
+
+### data-8
+
+Why must a batched retrieve always define a sort order?
+
+- A. Because Mendix rejects a retrieve with an offset and no sort order
+- B. Because sorting enables the aggregate-list optimization
+- C. Because without a stable sort the database may return records in an arbitrary order, so an incrementing offset can skip or reprocess records
+- D. Because the sort attribute is automatically indexed by the runtime
+
+**Answer:** C
+
+**Source:** Module 3.3. Sort on the most unique, stable attribute available so the record order stays predictable across successive offset-based retrieves.
+
+### data-9
+
+Microflow A retrieves Orders and counts them. Microflow B retrieves the same Orders, loops over the list, and then counts them. In which is the retrieve-plus-aggregation optimized into a single SELECT COUNT query?
+
+- A. In neither — the optimization requires an index
+- B. Only in microflow B
+- C. In both
+- D. Only in microflow A
+
+**Answer:** D
+
+**Source:** Module 3.4 / Exercise 3.4.1. The Count optimization applies only when the retrieved list is not reused elsewhere; reusing it in a loop forces a full retrieve plus an in-Runtime count.
+
+### data-10
+
+Which combination of statements about the Task Queue is correct?
+
+- I. Queued tasks only start once the creating transaction has fully committed
+- II. Queued tasks run in FIFO order but can execute in parallel
+- III. Queued task parameters are limited to primitives and committed persistable entities
+- IV. Queued tasks accept any parameter type, including non-persistable entities
+
+- A. I, II and III only
+- B. II, III and IV only
+- C. I and IV only
+- D. I, II and IV only
+
+**Answer:** A
+
+**Source:** Module 3.4 — Task Queue. Tasks fire only after the creating transaction commits; they run FIFO but can execute in parallel, and parameter types are limited to primitives and committed persistable entities.
+
+
+## Security and performance
 
 ### sec-1
 
@@ -202,7 +458,7 @@ Entity Request has a Status attribute (Draft / Submitted / Approved). The Custom
 
 ### sec-2
 
-You are modeling Employee and Customer entities alongside the Account entity. Which approach does the course recommend?
+You are modeling Employee and Customer entities alongside the Account entity. Which modelling approach is correct?
 
 - A. Make Employee and Customer specializations of Account
 - B. Make Account a specialization of both Employee and Customer
@@ -215,16 +471,14 @@ You are modeling Employee and Customer entities alongside the Account entity. Wh
 
 ### sec-3
 
-The same Request entity has no access rule at all defined for the Administrator module role. What does an Administrator see on a page showing Requests?
+The same Request entity has no access rule at all defined for the Administrator module role. An Administrator opening a page that shows Requests will get no results back.
 
-- A. All requests — administrators bypass entity access
-- B. Only requests the administrator owns
-- C. A runtime security exception is thrown at page load
-- D. No results would be returned
+- A. True
+- B. False
 
-**Answer:** D
+**Answer:** A
 
-**Source:** Module 2.10 Knowledge Check. Mendix denies by default: if no access rule grants a role access to an entity, that role gets nothing back.
+**Source:** Module 2.10 Knowledge Check. Mendix denies by default: if no access rule grants a role access to an entity, that role gets nothing back — administrators do not bypass entity access.
 
 ### sec-4
 
@@ -241,16 +495,21 @@ Continuing that scenario, you grant the Administrator page access to the Request
 
 ### sec-5
 
-Which of the following is NOT true about the Apply entity access setting on a microflow?
+Which combination of statements about the Apply entity access setting on a microflow is correct?
 
-- A. It adds the current user's entity XPath rules to database actions inside the microflow
-- B. It should be enabled on every microflow in the app as a blanket best practice
-- C. It should be enabled for anonymous and deep-link microflows handling sensitive data
-- D. A microflow with it set to No cannot call a sub-microflow that has it set to Yes
+- I. It adds the current user's entity XPath rules to database actions inside the microflow
+- II. It should be enabled on every microflow in the app as a blanket best practice
+- III. It should be enabled for anonymous and deep-link microflows handling sensitive data
+- IV. A microflow with it set to No cannot call a sub-microflow that has it set to Yes
+
+- A. I, II and III only
+- B. I, III and IV only
+- C. II, III and IV only
+- D. I and II only
 
 **Answer:** B
 
-**Source:** Module 3.2–3.4. Blanket-enabling Apply entity access breaks legitimate microflows that write read-only values or create logs for the user. CE0114 covers the calling restriction.
+**Source:** Module 3.2–3.4. Blanket-enabling Apply entity access (II) breaks legitimate microflows that write read-only values or create logs for the user. CE0114 covers the calling restriction in IV.
 
 ### sec-6
 
@@ -319,27 +578,30 @@ An app has roles Administrator, Teacher and Student. Admins can manage all roles
 
 ### sec-11
 
-Teachers are given User management = Selected → Student so they can manage their own class. Is this sufficient?
+Teachers are given User management = Selected → Student so they can manage their own class. This setting is sufficient to limit each teacher to the students in their own class.
 
-- A. Yes — User management automatically scopes to associated users
-- B. No — User management only controls page access, not account editing
-- C. Yes, provided the Student role also has User management set to None
-- D. No — teachers can now edit the account of any Student, not just those in their class
+- A. True
+- B. False
 
-**Answer:** D
+**Answer:** B
 
 **Source:** Module 4.6 Knowledge Check. User management grants access to all users holding that role; scoping to "my students" requires entity-level ownership rules on the process data instead.
 
 ### sec-12
 
-Which item is NOT part of the recommended checklist for configuring an Anonymous user role?
+Which combination belongs to the recommended checklist for configuring an Anonymous user role?
 
-- A. Give the role the Administrator module role in the System module so sessions can be created
-- B. Grant the role access only to necessary microflows, such as forgot-password
-- C. Remove read access to data that is not visible on the anonymous pages
-- D. Give the role the User module role in the System module
+- I. Give the role the User module role in the System module
+- II. Give the role the Administrator module role in the System module so sessions can be created
+- III. Grant the role access only to necessary microflows, such as forgot-password
+- IV. Remove read access to data that is not visible on the anonymous pages
 
-**Answer:** A
+- A. I, II and III only
+- B. II, III and IV only
+- C. I, III and IV only
+- D. I, II and IV only
+
+**Answer:** C
 
 **Source:** Module 4.4. The Anonymous role needs at least the System User module role plus Anonymous module roles elsewhere — never an administrator-level module role.
 
@@ -356,7 +618,47 @@ A user holds two user roles, and both roles have a role-based home page defined.
 
 **Source:** Module 5.3. With multiple roles Mendix simply uses the first role in the list — reorder the list to control it, or define a combined user role for a specific role combination.
 
-## Constrain Your Data Using Advanced XPath
+### rest-2
+
+What must a custom authentication microflow for a published REST service return?
+
+- A. A System.User object
+- B. An HttpResponse object
+- C. A Boolean indicating whether authentication succeeded
+- D. The API key as a String
+
+**Answer:** A
+
+**Source:** Module 5 — Security. Custom authentication requires a microflow that returns a System.User object; the custom authentication parameter (e.g. an X-API-Key header) maps to that microflow's parameter.
+
+### rest-12
+
+Which of these is NOT a selectable authentication method in a published REST service configuration?
+
+- A. Username and password
+- B. Active session
+- C. API key
+- D. Custom
+
+**Answer:** C
+
+**Source:** Module 5 — Security. The three selectable methods are username and password, active session and custom. An API key is a typical authentication *type* implemented through custom authentication.
+
+### rest-13
+
+You create a dedicated user role that exists only to access the published REST service. What extra configuration is necessary to avoid deployment errors?
+
+- A. Give it the Administrator module role in System
+- B. Mark the role as the default anonymous role
+- C. Set the role’s User management option to All
+- D. Disable the "Check security" checkbox on that role
+
+**Answer:** D
+
+**Source:** Module 5 — Standard Authentication. A service-only role must have "Check security" disabled, otherwise the app raises permission errors elsewhere.
+
+
+## XPath
 
 ### xpath-1
 
@@ -412,27 +714,30 @@ What is the correct order of translation when the runtime executes an XPath quer
 
 ### xpath-5
 
-Which of the following XPath expressions is INVALID?
+Consider these four XPath expressions. Which combination is valid?
 
-- A. [Available = true() and Active = false()]
-- B. [Available = true()][Active = false()]
-- C. [Available = true()] and [Active = false()]
-- D. [Color = 'Black' or Color = 'Silver/Black']
+- I. [Available = true() and Active = false()]
+- II. [Available = true()][Active = false()]
+- III. [Available = true()] and [Active = false()]
+- IV. [Color = 'Black' or Color = 'Silver/Black']
 
-**Answer:** C
+- A. I, II and III only
+- B. I, II and IV only
+- C. II, III and IV only
+- D. I, III and IV only
 
-**Source:** Module 4.2. Logical operators can only be used inside the square brackets. Multiple bracket sets are implicitly combined with and; placing "and" between bracket sets is invalid XPath.
+**Answer:** B
+
+**Source:** Module 4.2. Logical operators can only be used inside the square brackets. Multiple bracket sets are implicitly combined with and; placing "and" between bracket sets (III) is invalid XPath.
 
 ### xpath-6
 
-The not() function in XPath:
+The not() function in XPath generates a slow query because of the SQL it produces internally.
 
-- A. Is automatically rewritten by the runtime into a Subtract list operation
-- B. Is the fastest way to exclude objects, since it is evaluated in memory
-- C. Can only be applied to boolean attributes, never to associations
-- D. Generates a slow query because of the SQL it produces internally
+- A. True
+- B. False
 
-**Answer:** D
+**Answer:** A
 
 **Source:** Module 4.3. not() is generally slow due to the generated SQL — the recommended alternative is two retrieves plus a Subtract list operation in a microflow.
 
@@ -451,7 +756,7 @@ Which XPath filters SalesOrderHeader objects whose OrderDate falls in the second
 
 ### xpath-8
 
-A developer wants to constrain Customers to the logged-in user. Which form does the course call optimal?
+A developer wants to constrain Customers to the logged-in user. Which XPath form is most efficient?
 
 - A. [Sales.Customer_Account/Administration.Account/id = $currentUser]
 - B. [Sales.Customer_Account = $currentUser]
@@ -464,27 +769,30 @@ A developer wants to constrain Customers to the logged-in user. Which form does 
 
 ### xpath-9
 
-Which microflow list operations can replace an XPath or and an XPath and respectively?
+Which combination correctly pairs an XPath operator with the microflow list operation that can replace it?
 
-- A. Subtract and Union
-- B. Intersect and Subtract
-- C. Union and Intersect
-- D. Filter and Sort
+- I. An XPath or can be replaced with a Union list operation
+- II. An XPath and can be replaced with an Intersect list operation
+- III. An XPath or can be replaced with a Subtract list operation
+- IV. An XPath and can be replaced with a Filter list operation
 
-**Answer:** C
+- A. I and II only
+- B. III and IV only
+- C. I and IV only
+- D. II and III only
+
+**Answer:** A
 
 **Source:** Module 5.2. An or can be replaced with a Union list operation; an and can be replaced with an Intersect list operation.
 
 ### xpath-10
 
-When should you apply a database index, according to the course?
+Database indexes should be applied preemptively to every searchable attribute before go-live.
 
-- A. Preemptively on every searchable attribute, before go-live
-- B. Only on non-persistable entities used for search forms
-- C. On every attribute with an unlimited string length
-- D. On attributes used in searches, once app performance proves to be insufficient
+- A. True
+- B. False
 
-**Answer:** D
+**Answer:** B
 
 **Source:** Module 5.3. Do not index preemptively — indexes make inserts more costly. Analyze performance first, then index frequently-searched, rarely-changing attributes.
 
@@ -503,7 +811,7 @@ An Order table repeats the customer name and address on every row. Deleting all 
 
 ### xpath-12
 
-A reporting dashboard needs aggregated figures combined from several entities, and XPath is already fully optimized. What does the course suggest?
+A reporting dashboard needs aggregated figures combined from several entities, and XPath is already fully optimized. What is the best alternative approach?
 
 - A. Write raw SQL through a Java action
 - B. Use OQL, which resembles SQL and can aggregate across entities in one query
@@ -514,44 +822,306 @@ A reporting dashboard needs aggregated figures combined from several entities, a
 
 **Source:** Module 5.5. OQL is the more SQL-like alternative to XPath: it combines information from several entities and performs aggregation itself, significantly reducing the number of separate retrieves.
 
-## Design and Publish a REST API
+### adm-8
 
-### rest-1
+Which XPath condition can make effective use of a database index on the constrained attribute?
 
-Which HTTP methods are considered safe?
-
-- A. GET, POST & PUT
-- B. PUT, PATCH & DELETE
-- C. GET, PUT & DELETE
-- D. GET, HEAD & OPTIONS
+- A. [contains(Name, 'washer')]
+- B. [ends-with(Name, 'er')]
+- C. [not(Active)]
+- D. [starts-with(ProductNumber, 'BK')]
 
 **Answer:** D
 
-**Source:** Module 2 — Methods. Safe means the state of the system is not changed after the method finishes. Only GET, HEAD and OPTIONS are marked Safe in the properties table.
+**Source:** Module 5 — Indexes. Indexes work best with Equals or Starts-with conditions; Contains and Ends-with cannot use the index efficiently.
 
-### rest-2
+### adm-11
 
-What must a custom authentication microflow for a published REST service return?
+The self-reference Apprentice_Buddy exists on Player. A list view inside a data view on a Player must show that player's buddy (not their apprentices). Which XPath is correct?
 
-- A. A System.User object
-- B. An HttpResponse object
-- C. A Boolean indicating whether authentication succeeded
-- D. The API key as a String
+- A. [SoccerSquad.Apprentice_Buddy = '[%CurrentObject%]']
+- B. [reversed(SoccerSquad.Apprentice_Buddy) = '[%CurrentObject%]']
+- C. [SoccerSquad.Apprentice_Buddy [reversed()] = '[%CurrentObject%]']
+- D. [SoccerSquad.Apprentice_Buddy = '[%CurrentUser%]'] [reversed()]
+
+**Answer:** C
+
+**Source:** Module 6 — Self References. The plain constraint returns the apprentices of the current object; adding [reversed()] immediately after the self-reference step flips the direction so the buddy is returned.
+
+### adm-12
+
+Which statement about the [reversed()] expression is true?
+
+- A. It reverses the direction of every association in the whole XPath expression
+- B. It reverses the sort order of the returned list
+- C. It can be used on any association whose two ends have the same cardinality
+- D. It works only on self-references and affects only the one association it is attached to
+
+**Answer:** D
+
+**Source:** Module 6 — Self References. [reversed()] applies only to the single association step it is attached to and is only needed for self-references — for associations between two different entities Mendix determines the join direction itself.
+
+### mf-3
+
+Which of the following is a valid Mendix token?
+
+- A. [%CurrentAccount%]
+- B. [%CurrentTime%]
+- C. [%CurrentDayOfWeek%]
+- D. [%CurrentUser%]
+
+**Answer:** D
+
+**Source:** Module 2.3. [%CurrentUser%] returns the logged-in user object. CurrentAccount, CurrentTime and CurrentDayOfWeek are common distractors that do not exist.
+
+### data-11
+
+Which is the optimized form of [OrderLine_Product/Product/MinimalStock > 50][OrderLine_Product/Product/Status = ‘Active’]?
+
+- A. [OrderLine_Product/Product/MinimalStock > 50 or OrderLine_Product/Product/Status = 'Active']
+- B. [OrderManagement.OrderLine_Product/OrderManagement.Product[MinimalStock > 50 and Status = 'Active']]
+- C. [not(OrderLine_Product/Product/MinimalStock <= 50)][OrderLine_Product/Product/Status = 'Active']
+- D. The original form is already optimal because bracket sets are implicitly ANDed
+
+**Answer:** B
+
+**Source:** Module 4.4 — Combine Paths. Merging constraints that share an association path into one bracketed sub-query stops the database evaluating all unique path combinations twice.
+
+### data-12
+
+Which combination lists only genuine XPath best practices for optimal performance?
+
+- I. Put the most limiting constraint first
+- II. Limit the number of associations crossed in one query
+- III. Do not use XPath when you can use SQL instead
+- IV. Avoid or across two different association paths — split into two retrieves and merge the results
+
+- A. I, II and III only
+- B. II, III and IV only
+- C. I, II and IV only
+- D. I, III and IV only
+
+**Answer:** C
+
+**Source:** Module 4 Knowledge Check Q5. "Use SQL instead" is not a course recommendation — XPath is the platform-standard, database-agnostic approach. The other three are genuine guidelines.
+
+
+## Logging
+
+### log-1
+
+Which field of a log message differs between viewing it in Studio Pro and viewing it in the Mendix Portal?
+
+- A. The Timestamp field
+- B. The Log node field
+- C. The Source field
+- D. The Log level field
+
+**Answer:** C
+
+**Source:** Module 2 Knowledge Check. Source identifies which node/instance in a cloud cluster emitted the message, so it only applies to cloud-deployed environments and is absent from local Studio Pro output.
+
+### log-2
+
+How do you ensure that your log node name is available and configurable immediately after startup?
+
+- A. Declare the log node in the App Settings Loglevels tab
+- B. Log nodes are always available; no action is required
+- C. Create an enumeration key for it and set the default log level to Trace
+- D. Add a log activity to a microflow that you call in the After Startup microflow
+
+**Answer:** D
+
+**Source:** Module 5.4.1. A log node only becomes visible once something has written to it, so register every node at startup via a sub-microflow that logs one message per node, called from After Startup.
+
+### log-3
+
+What is the correct order of Mendix log levels, from least to most severe?
+
+- A. Trace, Debug, Info, Warning, Error, Critical
+- B. Debug, Trace, Info, Warning, Critical, Error
+- C. Info, Debug, Trace, Warning, Error, Critical
+- D. Trace, Info, Debug, Error, Warning, Critical
 
 **Answer:** A
 
-**Source:** Module 5 — Security. Custom authentication requires a microflow that returns a System.User object; the custom authentication parameter (e.g. an X-API-Key header) maps to that microflow's parameter.
+**Source:** Module 2. The order is Trace → Debug → Info → Warning → Error → Critical; configuring a node at a level also surfaces every more-severe level above it.
+
+### log-4
+
+A log node is configured at Warning level. Which combination of levels will be shown for that node?
+
+- I. Trace
+- II. Info
+- III. Warning
+- IV. Error
+- V. Critical
+
+- A. I, II and III only
+- B. III, IV and V only
+- C. III only
+- D. I, II, III, IV and V
+
+**Answer:** B
+
+**Source:** Module 2. Levels are cumulative going up in severity — Warning also surfaces Error and Critical, but not Info, Debug or Trace.
+
+### log-5
+
+Log messages are all generated automatically by the Mendix Runtime.
+
+- A. True
+- B. False
+
+**Answer:** B
+
+**Source:** Module 2 Knowledge Check. Log messages are written by the person who created the functionality being logged — both the Mendix platform/module developers and the app’s own developers write the messages for what they build.
+
+### log-6
+
+Why should log node names be defined in an Enumeration and read with getKey()?
+
+- A. Because Mendix rejects free-text log node names at runtime
+- B. It automatically registers the log node with the Mendix Portal
+- C. Because enumerations are the only values allowed in a Log message activity
+- D. It standardizes the log node name and groups every log node name in the app in one place
+
+**Answer:** D
+
+**Source:** Module 5.3.1 / Knowledge Check Q1. The enumeration standardizes naming and gives the team a single central list of every log node in the module.
+
+### log-7
+
+A Holiday Request app calls an external weather API. The call fails, but users can still submit requests without weather data. Which log level is appropriate for that error flow?
+
+- A. Warning — you can continue, but someone should look into why the call is failing
+- B. Error — every failed call is a real failure requiring action
+- C. Critical — an integration failure is application-breaking
+- D. Info — the failure is expected and needs no follow-up
+
+**Answer:** A
+
+**Source:** Module 5.5.1 / Knowledge Check Q3. Critical is overkill because the core functionality still works; the quiz’s confirmed answer is Warning — continue, but investigate.
+
+### log-8
+
+Which system variable exposes StatusCode, ReasonPhrase and Content in the error flow of a Call REST service action?
+
+- A. $latestError
+- B. $latestHttpResponse
+- C. $currentSession/Response
+- D. $HttpResponse/Latest
+
+**Answer:** B
+
+**Source:** Module 4 — REST call error handling. With "Custom with rollback" error handling, $latestHttpResponse becomes available with StatusCode, ReasonPhrase and Content.
+
+### log-9
+
+Which combination lists only the common Mendix error categories?
+
+- I. Null pointers
+- II. XPath syntax errors detected at runtime
+- III. Java out of memory errors
+- IV. Autocommitted objects
+- V. Security errors
+
+- A. I, II, III and IV only
+- B. I, III, IV and V only
+- C. II, III, IV and V only
+- D. I, II, IV and V only
+
+**Answer:** B
+
+**Source:** Module 4. The categories covered are null pointers, security errors, mathematical errors, Java out of memory errors, autocommitted objects and application breaks on startup. Runtime XPath syntax errors are not one of them.
+
+### log-10
+
+Which option on a Log message activity attaches the chain of microflow calls that led to a failure?
+
+- A. Refresh in client
+- B. Include latest error
+- C. Blocking
+- D. Include latest stack trace
+
+**Answer:** D
+
+**Source:** Module 4 — Stack traces. "Include latest stack trace" attaches the call chain and is especially valuable on Log message activities inside error-handling flows.
+
+### log-11
+
+An operator can be notified automatically the moment an application-breaking issue is logged, by configuring Critical Logs alerts in the Mendix Portal Alerts window.
+
+- A. True
+- B. False
+
+**Answer:** A
+
+**Source:** Module 3. The Portal can raise alerts automatically on Critical-level log messages, so operators are notified proactively instead of watching the log stream.
+
+### log-12
+
+Which navigation path is used to configure per-node log levels for an app already running in the Mendix Cloud?
+
+- A. Console > Advanced > Set log levels… in Studio Pro
+- B. Deploy > Environments > [environment] > Details > Loglevels tab
+- C. Run > Default Log Level in Studio Pro
+- D. App Settings > Configurations > Logging
+
+**Answer:** B
+
+**Source:** Module 3. The Studio Pro Console path configures a locally-running app; the Portal Loglevels tab configures a deployed cloud environment.
+
+### mf-13
+
+An unconditional breakpoint is placed on a decision that sits inside a loop. When will the microflow break?
+
+- A. Only on the first iteration
+- B. Each time the breakpoint is passed — on every iteration
+- C. Only on the last iteration
+- D. Never — breakpoints inside loops are ignored by the debugger
+
+**Answer:** B
+
+**Source:** Module 5 Knowledge Check Q3 / 5.4. Without a breakpoint condition, an in-loop breakpoint triggers on every single iteration — hence the rule to always add a break condition inside loops.
+
+
+## User experience
+
+### rest-1
+
+Which combination lists only the HTTP methods that are considered safe?
+
+- I. GET
+- II. POST
+- III. HEAD
+- IV. PUT
+- V. OPTIONS
+
+- A. I, II and III only
+- B. I, III and V only
+- C. II, IV and V only
+- D. I, IV and V only
+
+**Answer:** B
+
+**Source:** Module 2 — Methods. Safe means the state of the system is not changed after the method finishes. Only GET, HEAD and OPTIONS are marked Safe in the properties table.
 
 ### rest-3
 
-Which of the following is NOT idempotent?
+Which combination lists only the methods that are idempotent?
 
-- A. PUT
-- B. POST
-- C. DELETE
-- D. HEAD
+- I. PUT
+- II. POST
+- III. DELETE
+- IV. HEAD
 
-**Answer:** B
+- A. I, II and III only
+- B. II, III and IV only
+- C. I, III and IV only
+- D. I, II and IV only
+
+**Answer:** C
 
 **Source:** Module 2 — Properties of Methods. POST is neither safe nor idempotent because each call creates a new object. PUT, DELETE, HEAD (and GET/OPTIONS) are idempotent.
 
@@ -570,7 +1140,7 @@ A consumer must fetch one specific book by its system-generated id. How should t
 
 ### rest-5
 
-A POST successfully creates a new Book. Which response is correct according to the course guidelines?
+A POST successfully creates a new Book. Which HTTP response is correct?
 
 - A. 200 OK with an empty body
 - B. 201 Created with an empty body, since the client already has the data
@@ -596,14 +1166,12 @@ To implement true PUT semantics in Mendix (fields missing from the request becom
 
 ### rest-7
 
-True or false: a successful DELETE should return 204 No Content with no response body.
+A successful DELETE should return 204 No Content with no response body.
 
-- A. False — it should return 200 OK with the deleted object
-- B. True
-- C. False — it should return 202 Accepted
-- D. False — it should return 404 once the object no longer exists
+- A. True
+- B. False
 
-**Answer:** B
+**Answer:** A
 
 **Source:** Module 2 — DELETE. A successful DELETE returns 204 No Content and no body; a 404 is returned only if the object was not found in the first place.
 
@@ -620,19 +1188,6 @@ An external system tries to update a Book, but the record has already been chang
 
 **Source:** Module 3 — Status Codes. 409 Conflict = the object cannot be updated because of an earlier update. 400 is failed validation; 403 is authenticated but not authorized.
 
-### rest-9
-
-Which statement about REST error message content is TRUE?
-
-- A. UserMessage is mandatory and SystemMessage is optional
-- B. Error responses must always be a list, never a single error object
-- C. Stack traces are acceptable in SystemMessage since it is developer-facing
-- D. SystemMessage is mandatory and may contain technical information for developers
-
-**Answer:** D
-
-**Source:** Module 3 — Error Messages. SystemMessage must be present and may carry technical info; UserMessage is optional and must not be technical. Stack traces must never be exposed, and the response can be a single object or a list.
-
 ### rest-10
 
 A developer builds their mapping documents from JSON snippets rather than message definitions. What is the downside?
@@ -648,53 +1203,71 @@ A developer builds their mapping documents from JSON snippets rather than messag
 
 ### rest-11
 
-Which of the following is NOT one of the places where documentation can be added to a published REST service?
+Which combination lists only places where documentation can be added to a published REST service?
 
-- A. A parameter
-- B. A status code
-- C. An operation's summary and description
-- D. An attribute's message definition field
+- I. A parameter
+- II. A status code
+- III. An operation's summary and description
+- IV. An attribute's message definition field
+- V. The selected authentication method
+
+- A. I, II and III only
+- B. I, III and IV only
+- C. II, IV and V only
+- D. I, III and V only
 
 **Answer:** B
 
 **Source:** Module 4 — Extend API with Documentation. The six documentable places are the service, a resource, an operation (summary + description), parameters, an object message definition and an attribute message definition — all GitHub Flavored Markdown. Status codes, authentication and methods are not documentable.
 
-### rest-12
+### err-5
 
-Which of these is NOT a selectable authentication method in a published REST service configuration?
+A nightly scheduled event synchronizes data over REST. There is no user present. What is the appropriate error handling strategy?
 
-- A. Username and password
-- B. Active session
-- C. API key
-- D. Custom
+- A. A Log message activity so the details can be traced later
+- B. A Show message activity so the next user to log in sees the failure
+- C. Validation feedback on the affected object
+- D. No error handling — scheduled events retry automatically
+
+**Answer:** A
+
+**Source:** Module 4.3. Match the strategy to the trigger: system-triggered microflows prioritize logging (no user to notify); user-triggered microflows prioritize a friendly Show message.
+
+### err-7
+
+Why is it necessary to create both a log message and a user message in an error handler?
+
+- A. Because the log message rolls back the transaction and the user message does not
+- B. Because a Show message activity cannot include parameters
+- C. Because the log message will not appear in the frontend
+- D. Because Mendix ignores Show message activities in error flows
 
 **Answer:** C
 
-**Source:** Module 5 — Security. The three selectable methods are username and password, active session and custom. An API key is a typical authentication *type* implemented through custom authentication.
+**Source:** Module 4 Knowledge Check. The log is only written to the server-side log files, invisible to the end user — so a separate user-facing message is needed as well.
 
-### rest-13
+### mf-12
 
-You create a dedicated user role that exists only to access the published REST service. What extra step does the course require?
+A "get or create Account" sub-microflow is modelled with two end events, both typed as Account. What benefit does this give the calling microflow?
 
-- A. Give it the Administrator module role in System
-- B. Mark the role as the default anonymous role
-- C. Set the role’s User management option to All
-- D. Disable the "Check security" checkbox on that role
+- A. The caller needs only one downstream Show page action, with no duplicated logic or extra decision
+- B. The caller can skip committing the Account object
+- C. The sub-microflow can be reused as a Rule inside a decision
+- D. Entity access no longer needs to be applied on the Account entity
 
-**Answer:** D
+**Answer:** A
 
-**Source:** Module 5 — Standard Authentication. A service-only role must have "Check security" disabled, otherwise the app raises permission errors elsewhere.
+**Source:** Module 4.3 — the get-or-create pattern. Both end events returning the same entity means the sub-microflow always returns an Account, so the caller needs only one Show page action.
 
-## Error Handling
+
+## Error handling
 
 ### err-1
 
-You need to create error handling for Java actions because:
+By default, Mendix is not able to catch errors that occur inside a Java action — which is why Java actions need error handling of their own.
 
-- A. Mendix is not able to catch errors that occur in a Java action by default
-- B. Java actions always roll back the entire transaction automatically
-- C. Java actions cannot be used inside a sub-microflow
-- D. Studio Pro's consistency checker flags every Java action as an error
+- A. True
+- B. False
 
 **Answer:** A
 
@@ -728,29 +1301,21 @@ What happens when Mendix cannot finish a transaction successfully and no error h
 
 ### err-4
 
-Which error handling type re-throws the error to all parent microflows after executing the custom activities?
+Which combination correctly describes the Mendix error handling types?
 
-- A. End Event
-- B. Custom without rollback
-- C. Custom with rollback
-- D. Error End Event
+- I. Custom with rollback undoes everything up to the error and starts a new transaction
+- II. Custom without rollback keeps the changes made before the error
+- III. Error End Event re-throws the error to all parent microflows after executing the custom activities
+- IV. Error End Event silently ends the microflow without informing any caller
 
-**Answer:** D
-
-**Source:** Module 4.2 reference table. The Error End Event executes the custom activities and then re-throws the error upward to every parent microflow.
-
-### err-5
-
-A nightly scheduled event synchronizes data over REST. There is no user present. What does the course recommend as the priority for error handling here?
-
-- A. A Log message activity so the details can be traced later
-- B. A Show message activity so the next user to log in sees the failure
-- C. Validation feedback on the affected object
-- D. No error handling — scheduled events retry automatically
+- A. I, II and III only
+- B. II, III and IV only
+- C. I, III and IV only
+- D. I, II and IV only
 
 **Answer:** A
 
-**Source:** Module 4.3. Match the strategy to the trigger: system-triggered microflows prioritize logging (no user to notify); user-triggered microflows prioritize a friendly Show message.
+**Source:** Module 4.2 reference table. Custom With Rollback undoes everything up to the error and starts a new transaction; Custom Without Rollback keeps what happened before it; the Error End Event executes the custom activities and then re-throws the error upward to every parent microflow.
 
 ### err-6
 
@@ -765,35 +1330,20 @@ Fill in the blank: inside an error handler flow, the system variable ____ holds 
 
 **Source:** Module 4.2.2 / 4.3.1. $latestError/Message is populated automatically inside an error handler and is used as a parameter in both the Log message and Show message templates.
 
-### err-7
-
-Why is it necessary to create both a log message and a user message in an error handler?
-
-- A. Because the log message rolls back the transaction and the user message does not
-- B. Because a Show message activity cannot include parameters
-- C. Because the log message will not appear in the frontend
-- D. Because Mendix ignores Show message activities in error flows
-
-**Answer:** C
-
-**Source:** Module 4 Knowledge Check. The log is only written to the server-side log files, invisible to the end user — so a separate user-facing message is needed as well.
-
 ### err-8
 
-True or false: adding as many layered error-handling combinations as possible makes an app more robust.
+Adding as many layered error-handling combinations as possible makes an app more robust.
 
-- A. True — more handling always means fewer unhandled errors
-- B. False — Mendix only allows one error handler per microflow
-- C. True, provided every handler uses Custom with rollback
-- D. False — overly complex handling slows down microflow evaluation and makes behavior on exception harder to predict
+- A. True
+- B. False
 
-**Answer:** D
+**Answer:** B
 
-**Source:** Module 4.2.2 caution. Do not over-engineer error handling; keep it as simple as the situation requires.
+**Source:** Module 4.2.2 caution. Do not over-engineer error handling — overly complex handling slows down microflow evaluation and makes behavior on exception harder to predict. Keep it as simple as the situation requires.
 
 ### err-9
 
-When building a new microflow, where does the course recommend starting?
+When building a new microflow, where should development start?
 
 - A. At the end of the microflow, defining the desired outcome first
 - B. At the start event, adding parameters first
@@ -843,489 +1393,15 @@ After connecting an object type to an Excel import template, what must be done b
 
 **Source:** Module 5 Knowledge Check. You must click "Connect matching attributes"; correctly connected columns then show green check marks.
 
-## Master Modeling Microflows
+### rest-9
 
-### mf-1
+In a REST error response, SystemMessage is mandatory and may contain technical information for developers.
 
-What does the list operation 'tail' do?
-
-- A. It grabs the last element in the list
-- B. It grabs all elements in the list except the first element
-- C. It grabs the first n elements of the list
-- D. It reverses the order of the list
-
-**Answer:** B
-
-**Source:** Module 3.3. Tail returns the list except for the first element(s) — not 'the last element', which the course flags as a common misconception. Head returns the first n objects.
-
-### mf-2
-
-Which statement about Rules is true?
-
-- A. A rule can show a page or a message to the user
-- B. A rule can commit objects to the database
-- C. A rule can only be called from within a decision
-- D. A rule can call a web service
-
-**Answer:** C
-
-**Source:** Module 4.5. A Rule always returns a Boolean or Enumeration and can be used directly inside a Decision. Rules cannot change data, interact with the client, call web services, generate documents, or import XML.
-
-### mf-3
-
-Which of the following is a valid Mendix token?
-
-- A. [%CurrentAccount%]
-- B. [%CurrentTime%]
-- C. [%CurrentDayOfWeek%]
-- D. [%CurrentUser%]
-
-**Answer:** D
-
-**Source:** Module 2.3. [%CurrentUser%] returns the logged-in user object. CurrentAccount, CurrentTime and CurrentDayOfWeek are common distractors that do not exist.
-
-### mf-4
-
-What is the easiest way to determine the name of the day of the week for a given date?
-
-- A. Use formatDateTime($date, 'EEEE')
-- B. Compute daysBetween($date, [%BeginOfCurrentWeek%]) and map the number with if-then-else
-- C. Use the [%CurrentDayOfWeek%] token
-- D. Use a Rule returning an enumeration of weekdays
+- A. True
+- B. False
 
 **Answer:** A
 
-**Source:** Module 2.5 / Knowledge Check. formatDateTime with pattern 'EEEE' (or 'E' for the abbreviation) is far simpler than manual date math.
+**Source:** Module 3 — Error Messages. SystemMessage must be present and may carry technical info; UserMessage is optional and must not be technical. Stack traces must never be exposed, and the response can be a single object or a list.
 
-### mf-5
-
-A developer needs an associated object, but the association may be empty. Which approach is most efficient?
-
-- A. Retrieve the object first, then check whether the result is empty
-- B. Use a decision to check whether the association exists, and only retrieve if it does
-- C. Always retrieve and rely on the null-safe expression operators downstream
-- D. Retrieve from database with an XPath constraint instead of by association
-
-**Answer:** B
-
-**Source:** Module 2 Knowledge Check Q4. Checking the association first avoids an unnecessary retrieve, which is more efficient than "retrieve first, then check if empty".
-
-### mf-6
-
-Which statement about lists in a microflow is TRUE?
-
-- A. You must check that a list is not empty before looping through it
-- B. To empty a list you must remove its objects one at a time
-- C. A list can originate from a Retrieve action, from creating a new list, or from an input parameter
-- D. Lists can only be created by a Retrieve action
-
-**Answer:** C
-
-**Source:** Module 3.2. Those are the three list origins. Change List → Clear empties a list in one step, and looping an empty list simply performs zero iterations.
-
-### mf-7
-
-A microflow must count a few thousand Customers that are known to exist in the database. What is the best approach?
-
-- A. Loop over the customers and increment an integer variable
-- B. Use a Rule returning the count as an integer
-- C. Retrieve in batches of 250 and sum the batch counts
-- D. Retrieve all customers and use a List Aggregation Count directly after the retrieve
-
-**Answer:** D
-
-**Source:** Module 3.4 / Knowledge Check. A List Aggregation placed directly after a Retrieve is automatically optimized into a single lightweight database query, staying safe even for large lists.
-
-### mf-8
-
-A loop currently finds the most expensive OrderLine using Aggregate List (max) plus a matching loop. Which refactor does the course recommend?
-
-- A. Sort descending on SellingPrice, then Head to take the first object
-- B. Filter on the max price, then use Find
-- C. Use Tail after sorting ascending
-- D. Replace the loop with an Intersect list operation
-
-**Answer:** A
-
-**Source:** Module 3.4.1. The Sort-then-Head pattern is the general-purpose replacement for "loop to find the min/max item".
-
-### mf-9
-
-A sub-microflow is called inside a loop and contains a Commit activity with "Refresh in client" set to Yes. What is wrong?
-
-- A. Nothing — committing per iteration keeps data consistent
-- B. Committing inside a loop causes many database round-trips and drastically hurts performance; commit once after the loop
-- C. Refresh in client is not supported inside sub-microflows
-- D. The commit should be moved before the loop instead
-
-**Answer:** B
-
-**Source:** Module 4.4.1 key rule: never put a Commit activity inside a loop — batch the changes and commit the whole list once in the main microflow.
-
-### mf-10
-
-Which commit rule does the course give for sub-microflows?
-
-- A. Always commit inside the sub-microflow, never in the caller
-- B. Commit in the sub-microflow for objects passed in as parameters; commit in the caller for objects created inside
-- C. Commit in the sub-microflow for objects created or retrieved inside it that are not passed out; commit in the main microflow for objects passed in as input parameters
-- D. Never commit in either — always use auto-commit behavior
-
-**Answer:** C
-
-**Source:** Module 4.4 — Committing Inside or Outside of a Sub-Microflow. Those are the two stated rules.
-
-### mf-11
-
-A main microflow calls three sub-microflows, and each one retrieves the same Customer entity from the database. Should this change?
-
-- A. No — each sub-microflow should be self-contained
-- B. No — the object cache makes the extra retrieves free
-- C. Yes — merge the three sub-microflows into one so the retrieve happens once
-- D. Yes — retrieve once in the main microflow and pass the Customer to all three as an input parameter
-
-**Answer:** D
-
-**Source:** Module 4 Knowledge Check Q2 / 4.4.3. Avoid unnecessary retrieves in sub-microflows: pass data already available in the main flow as an input parameter.
-
-### mf-12
-
-A "get or create Account" sub-microflow is modelled with two end events, both typed as Account. What benefit does this give the calling microflow?
-
-- A. The caller needs only one downstream Show page action, with no duplicated logic or extra decision
-- B. The caller can skip committing the Account object
-- C. The sub-microflow can be reused as a Rule inside a decision
-- D. Entity access no longer needs to be applied on the Account entity
-
-**Answer:** A
-
-**Source:** Module 4.3 — the get-or-create pattern. Both end events returning the same entity means the sub-microflow always returns an Account, so the caller needs only one Show page action.
-
-### mf-13
-
-An unconditional breakpoint is placed on a decision that sits inside a loop. When will the microflow break?
-
-- A. Only on the first iteration
-- B. Each time the breakpoint is passed — on every iteration
-- C. Only on the last iteration
-- D. Never — breakpoints inside loops are ignored by the debugger
-
-**Answer:** B
-
-**Source:** Module 5 Knowledge Check Q3 / 5.4. Without a breakpoint condition, an in-loop breakpoint triggers on every single iteration — hence the rule to always add a break condition inside loops.
-
-## Track Application Behavior with Logging
-
-### log-1
-
-Which field of a log message differs between viewing it in Studio Pro and viewing it in the Mendix Portal?
-
-- A. The Timestamp field
-- B. The Log node field
-- C. The Source field
-- D. The Log level field
-
-**Answer:** C
-
-**Source:** Module 2 Knowledge Check. Source identifies which node/instance in a cloud cluster emitted the message, so it only applies to cloud-deployed environments and is absent from local Studio Pro output.
-
-### log-2
-
-How do you ensure that your log node name is available and configurable immediately after startup?
-
-- A. Declare the log node in the App Settings Loglevels tab
-- B. Log nodes are always available; no action is required
-- C. Create an enumeration key for it and set the default log level to Trace
-- D. Add a log activity to a microflow that you call in the After Startup microflow
-
-**Answer:** D
-
-**Source:** Module 5.4.1. A log node only becomes visible once something has written to it, so register every node at startup via a sub-microflow that logs one message per node, called from After Startup.
-
-### log-3
-
-What is the correct order of Mendix log levels, from least to most severe?
-
-- A. Trace, Debug, Info, Warning, Error, Critical
-- B. Debug, Trace, Info, Warning, Critical, Error
-- C. Info, Debug, Trace, Warning, Error, Critical
-- D. Trace, Info, Debug, Error, Warning, Critical
-
-**Answer:** A
-
-**Source:** Module 2. The order is Trace → Debug → Info → Warning → Error → Critical; configuring a node at a level also surfaces every more-severe level above it.
-
-### log-4
-
-A log node is configured at Warning level. Which messages will be shown for that node?
-
-- A. Warning only
-- B. Warning, Error and Critical
-- C. Trace, Debug and Info
-- D. All six levels
-
-**Answer:** B
-
-**Source:** Module 2. Levels are cumulative going up in severity — Warning also surfaces Error and Critical, but not Info, Debug or Trace.
-
-### log-5
-
-Where do log messages come from?
-
-- A. They are all generated automatically by the Mendix Runtime
-- B. They are generated by the database adapter when SQL is executed
-- C. They are written by the person who created the functionality being logged
-- D. They are produced only by Marketplace modules, never by your own logic
-
-**Answer:** C
-
-**Source:** Module 2 Knowledge Check. Both the Mendix platform/module developers and the app’s own developers write the messages for the functionality they build.
-
-### log-6
-
-Why should log node names be defined in an Enumeration and read with getKey()?
-
-- A. Because Mendix rejects free-text log node names at runtime
-- B. It automatically registers the log node with the Mendix Portal
-- C. Because enumerations are the only values allowed in a Log message activity
-- D. It standardizes the log node name and groups every log node name in the app in one place
-
-**Answer:** D
-
-**Source:** Module 5.3.1 / Knowledge Check Q1. The enumeration standardizes naming and gives the team a single central list of every log node in the module.
-
-### log-7
-
-A Holiday Request app calls an external weather API. The call fails, but users can still submit requests without weather data. Which log level does the course settle on for that error flow?
-
-- A. Warning — you can continue, but someone should look into why the call is failing
-- B. Error — every failed call is a real failure requiring action
-- C. Critical — an integration failure is application-breaking
-- D. Info — the failure is expected and needs no follow-up
-
-**Answer:** A
-
-**Source:** Module 5.5.1 / Knowledge Check Q3. Critical is overkill because the core functionality still works; the quiz’s confirmed answer is Warning — continue, but investigate.
-
-### log-8
-
-Which system variable exposes StatusCode, ReasonPhrase and Content in the error flow of a Call REST service action?
-
-- A. $latestError
-- B. $latestHttpResponse
-- C. $currentSession/Response
-- D. $HttpResponse/Latest
-
-**Answer:** B
-
-**Source:** Module 4 — REST call error handling. With "Custom with rollback" error handling, $latestHttpResponse becomes available with StatusCode, ReasonPhrase and Content.
-
-### log-9
-
-Which of the following is NOT one of the common Mendix error categories covered by the course?
-
-- A. Autocommitted objects
-- B. Java out of memory errors
-- C. XPath syntax errors detected at runtime
-- D. Null pointers
-
-**Answer:** C
-
-**Source:** Module 4. The categories covered are null pointers, security errors, mathematical errors, Java out of memory errors, autocommitted objects and application breaks on startup.
-
-### log-10
-
-Which option on a Log message activity attaches the chain of microflow calls that led to a failure?
-
-- A. Refresh in client
-- B. Include latest error
-- C. Blocking
-- D. Include latest stack trace
-
-**Answer:** D
-
-**Source:** Module 4 — Stack traces. "Include latest stack trace" attaches the call chain and is especially valuable on Log message activities inside error-handling flows.
-
-### log-11
-
-An operator wants to be notified automatically the moment an application-breaking issue is logged. What should be configured?
-
-- A. Critical Logs alerts in the Mendix Portal Alerts window
-- B. A scheduled event that polls Deploy > Logs every minute
-- C. The Run > Default Log Level setting in Studio Pro
-- D. A Warning-level log node registered at startup
-
-**Answer:** A
-
-**Source:** Module 3. The Portal can raise alerts automatically on Critical-level log messages, so operators are notified proactively instead of watching the log stream.
-
-### log-12
-
-Which navigation path is used to configure per-node log levels for an app already running in the Mendix Cloud?
-
-- A. Console > Advanced > Set log levels… in Studio Pro
-- B. Deploy > Environments > [environment] > Details > Loglevels tab
-- C. Run > Default Log Level in Studio Pro
-- D. App Settings > Configurations > Logging
-
-**Answer:** B
-
-**Source:** Module 3. The Studio Pro Console path configures a locally-running app; the Portal Loglevels tab configures a deployed cloud environment.
-
-## Win at Working with Data
-
-### data-1
-
-True or false: a retrieve by association will always be an in-memory retrieve.
-
-- A. True, by association always reads from the transaction object cache
-- B. False, a retrieve by association always queries the database
-- C. True, unless the association is a reference set
-- D. False, if objects aren't available in memory a retrieve by association will automatically result in a database retrieve
-
-**Answer:** D
-
-**Source:** Module 3.2. The Runtime converts a by-association retrieve into a database retrieve when the data isn't already cached — across chained associations this can produce an N+1 pattern of many small queries.
-
-### data-2
-
-What is an important rule to keep in mind when creating effective indexes over multiple attributes?
-
-- A. The index should have the same order of attributes as used in the search and retrieve queries
-- B. The index should list the attributes in alphabetical order
-- C. The index should always include a Boolean attribute to split the table evenly
-- D. The index should be defined on non-persistable entities for best performance
-
-**Answer:** A
-
-**Source:** Module 3.4. Indexes are ordered — queries should filter on the attributes in the same order as the index. If constrained by only one attribute, that attribute must be first in the index to benefit.
-
-### data-3
-
-Which of the following is NOT a possible source of data for a microflow?
-
-- A. An input parameter received from the client or a calling microflow
-- B. A page passed as an input parameter by another microflow
-- C. The return value of a sub-microflow or integration activity
-- D. An object created inside the microflow
-
-**Answer:** B
-
-**Source:** Module 3 Knowledge Check Q1. Pages are not a valid microflow parameter type; the four real sources are input parameters, retrieve actions, objects created in-flow and return values.
-
-### data-4
-
-A microflow must read the value that is actually committed in the database, ignoring a newer uncommitted change held in the transaction cache. Which retrieve should be used?
-
-- A. By association — the cache always mirrors the database
-- B. Either, since Mendix always refreshes the cache before a retrieve
-- C. From database — an association retrieve may return cached, not-yet-committed values
-- D. By association, followed by a Rollback activity
-
-**Answer:** C
-
-**Source:** Module 3.2 — Difference in value. A database retrieve always returns the actual committed values; an association retrieve may serve recent, uncommitted changes from the object cache.
-
-### data-5
-
-A data grid uses the Database source with the constraint Status Equals ‘Bronze’. The same grid is switched to XPath with [Status = ‘Bronze’]. What happens to the generated SQL?
-
-- A. The XPath version generates an extra join
-- B. The Database version generates a lighter query without a WHERE clause
-- C. The Database version is executed in memory instead of on the database
-- D. Both generate exactly the same SQL query
-
-**Answer:** D
-
-**Source:** Module 2.4.1. Both approaches produce identical SQL — the choice is about ease of use, offline support and constraint complexity, not performance.
-
-### data-6
-
-Which of the following is NOT an advantage of the Database data source option over the XPath option?
-
-- A. It can specify constraints that span multiple entities
-- B. It is the only option supported in offline mobile apps
-- C. It is easier to configure with guided constraint selection in Studio Pro
-- D. It covers most simple filtering needs without writing query syntax
-
-**Answer:** A
-
-**Source:** Module 2 Knowledge Check Q4. Spanning multiple entities is something only XPath can do; the Database option allows only simple constraints on the retrieved entity.
-
-### data-7
-
-A batch process retrieves 10,000 Products using Limit and Offset. Records are being skipped. Which cause matches the course’s hard rules?
-
-- A. The batch size of 250 is too small for the dataset
-- B. An attribute that changes during the run is part of the retrieve constraint, so the underlying set shifts between iterations
-- C. The retrieve is by association instead of from database
-- D. The offset variable is an Integer instead of a Long
-
-**Answer:** B
-
-**Source:** Module 3.3.1. Rule 1: when using Limit and Offset together, attributes that can change during the run must not be part of the constraint, or records get skipped as the result set shifts.
-
-### data-8
-
-Why does the course insist that a batched retrieve always define a sort order?
-
-- A. Because Mendix rejects a retrieve with an offset and no sort order
-- B. Because sorting enables the aggregate-list optimization
-- C. Because without a stable sort the database may return records in an arbitrary order, so an incrementing offset can skip or reprocess records
-- D. Because the sort attribute is automatically indexed by the runtime
-
-**Answer:** C
-
-**Source:** Module 3.3. Sort on the most unique, stable attribute available so the record order stays predictable across successive offset-based retrieves.
-
-### data-9
-
-Microflow A retrieves Orders and counts them. Microflow B retrieves the same Orders, loops over the list, and then counts them. In which is the retrieve-plus-aggregation optimized into a single SELECT COUNT query?
-
-- A. In neither — the optimization requires an index
-- B. Only in microflow B
-- C. In both
-- D. Only in microflow A
-
-**Answer:** D
-
-**Source:** Module 3.4 / Exercise 3.4.1. The Count optimization applies only when the retrieved list is not reused elsewhere; reusing it in a loop forces a full retrieve plus an in-Runtime count.
-
-### data-10
-
-Which statement about the Task Queue is TRUE?
-
-- A. Queued tasks only start once the creating transaction has fully committed
-- B. Queued tasks start executing immediately, even if the creating transaction is later rolled back
-- C. Queued tasks execute strictly one at a time in FIFO order under all conditions
-- D. Queued tasks accept any parameter type, including non-persistable entities
-
-**Answer:** A
-
-**Source:** Module 3.4 — Task Queue. Tasks fire only after the creating transaction commits; they run FIFO but can execute in parallel, and parameter types are limited to primitives and committed persistable entities.
-
-### data-11
-
-Which is the optimized form of [OrderLine_Product/Product/MinimalStock > 50][OrderLine_Product/Product/Status = ‘Active’]?
-
-- A. [OrderLine_Product/Product/MinimalStock > 50 or OrderLine_Product/Product/Status = 'Active']
-- B. [OrderManagement.OrderLine_Product/OrderManagement.Product[MinimalStock > 50 and Status = 'Active']]
-- C. [not(OrderLine_Product/Product/MinimalStock <= 50)][OrderLine_Product/Product/Status = 'Active']
-- D. The original form is already optimal because bracket sets are implicitly ANDed
-
-**Answer:** B
-
-**Source:** Module 4.4 — Combine Paths. Merging constraints that share an association path into one bracketed sub-query stops the database evaluating all unique path combinations twice.
-
-### data-12
-
-Which statement is NOT an XPath best practice for optimal performance?
-
-- A. Put the most limiting constraint first
-- B. Limit the number of associations crossed in one query
-- C. Do not use XPath when you can use SQL instead
-- D. Avoid or across two different association paths — split into two retrieves and merge the results
-
-**Answer:** C
-
-**Source:** Module 4 Knowledge Check Q5. "Use SQL instead" is not a course recommendation — XPath is the platform-standard, database-agnostic approach. The other three are genuine guidelines.
+<!-- Intermediate certification bank. Category is encoded in each topic heading and parsed into question.category. -->

@@ -6,7 +6,8 @@ import QuestionCard from '../components/QuestionCard.jsx';
 import QuestionNav from '../components/QuestionNav.jsx';
 import Timer from '../components/Timer.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
-import { LETTERS, PASS_THRESHOLD } from '../data/questions';
+import { PASS_THRESHOLD } from '../data/questions';
+import { LETTERS } from '../lib/parseQuestions';
 import { LENGTH_PRESETS, TIME_PRESETS, buildPaper, resolveTimeLimit } from '../lib/examConfig';
 import {
   clearInProgress,
@@ -247,14 +248,18 @@ export default function Quiz() {
         const byNumber = ['1', '2', '3', '4'].indexOf(e.key);
         const byLetter = LETTERS.indexOf(e.key.toUpperCase());
         const index = byNumber >= 0 ? byNumber : byLetter;
-        if (index >= 0) selectAnswer(LETTERS[index]);
+        // A true/false question has two options, so C and D must do nothing
+        // rather than record an answer the question does not offer.
+        if (index >= 0 && index < (question?.options.length ?? 0)) {
+          selectAnswer(LETTERS[index]);
+        }
       }
     };
 
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [attempt, confirming, current, goTo]);
+  }, [attempt, confirming, current, goTo, question]);
 
   // Warn before an accidental tab close mid-exam.
   useEffect(() => {

@@ -49,6 +49,57 @@ const BANKS = [
   },
 ];
 
+/**
+ * Study modules, and which exam topics each one covers.
+ *
+ * The guides are a different cut of the same material: a module feeds several
+ * exam topics and a topic draws on several modules. This records that mapping
+ * for the study view — nothing in the exam depends on it.
+ */
+const MODULE_TOPICS = {
+  advanced: {
+    'Advanced-Domain-Model-Skills-Knowledge-Base': {
+      title: 'Advanced Domain Model Skills',
+      topics: ['Advanced domain modeling', 'XPath'],
+    },
+    'Configure-Advanced-Security-Knowledge-Base': {
+      title: 'Configure Advanced Security',
+      topics: ['Security and performance'],
+    },
+    'Constrain-Your-Data-Using-Advanced-XPath-Knowledge-Base': {
+      title: 'Constrain Your Data Using Advanced XPath',
+      topics: ['XPath'],
+    },
+    'Design-and-Publish-a-REST-API-Knowledge-Base': {
+      title: 'Design and Publish a REST API',
+      topics: ['User experience', 'Security and performance', 'Error handling'],
+    },
+    'Error-Handling-Knowledge-Base': {
+      title: 'Error Handling',
+      topics: ['Error handling', 'User experience'],
+    },
+    'Master-Modeling-Microflows-Knowledge-Base': {
+      title: 'Master Modeling Microflows',
+      topics: [
+        'Memory and data model optimization',
+        'XPath',
+        'Advanced domain modeling',
+        'User experience',
+        'Logging',
+      ],
+    },
+    'Track-Application-Behavior-with-Logging-Knowledge-Base': {
+      title: 'Track Application Behavior with Logging',
+      topics: ['Logging'],
+    },
+    'Win-at-Working-with-Data-Knowledge-Base': {
+      title: 'Win at Working with Data',
+      topics: ['Memory and data model optimization', 'XPath'],
+    },
+  },
+  intermediate: {},
+};
+
 const slugifyName = (topic) =>
   topic
     .toLowerCase()
@@ -100,34 +151,41 @@ function loadEnv() {
  * Map a knowledge-base filename to its topic name by matching against the
  * topics found in questions.md, rather than a hand-maintained lookup table.
  */
-function readKnowledgeBase(dir, topicNames, level) {
-  const bySlug = new Map(topicNames.map((name) => [slugify(name, level), name]));
+function readStudyModules(dir, topicNames, level) {
+  const meta = MODULE_TOPICS[level] ?? {};
+  const known = new Set(topicNames);
   const found = [];
 
   let files = [];
   try {
-    files = readdirSync(dir).filter((f) => f.endsWith('.md'));
+    files = readdirSync(dir).filter((f) => f.endsWith('.md')).sort();
   } catch {
-    console.warn(`  ! no knowledge base directory at ${dir} — skipping topic_content`);
+    console.warn(`  ! no knowledge base directory at ${dir} — skipping study modules`);
     return found;
   }
 
-  for (const file of files) {
+  files.forEach((file, i) => {
     const stem = file.replace(/\.md$/, '');
-    // "Advanced-Domain-Model-Skills-Knowledge-Base" -> "advanced-domain-model-skills"
-    const slug = slugify(stem.replace(/-?Knowledge-?Base$/i, ''), level);
+    const entry = meta[stem] ?? { title: stem.replace(/-/g, ' '), topics: [] };
 
-    if (!bySlug.has(slug)) {
-      console.warn(`  ! ${file} matches no topic in this bank (slug "${slug}") — skipped`);
-      continue;
+    // A mapping that names a topic the bank does not have is a rename nobody
+    // followed through — surface it rather than silently dropping the link.
+    for (const topic of entry.topics) {
+      if (!known.has(topic)) {
+        console.warn(`  ! ${file} maps to unknown topic "${topic}" — check MODULE_TOPICS`);
+      }
     }
 
     found.push({
-      topic_slug: slug,
+      slug: `${level}-${slugifyName(entry.title)}`,
+      level,
+      title: entry.title,
       file,
+      topics: entry.topics,
+      position: i,
       content: readFileSync(join(dir, file), 'utf8'),
     });
-  }
+  });
 
   return found;
 }
@@ -154,7 +212,7 @@ async function main() {
       continue;
     }
 
-    const questions = parseQuestions(markdown);
+    const questions = parseQuestions(markdown, bank.questions);
     if (!questions.length) {
       console.error(`${bank.questions} parsed to zero questions — refusing to wipe that bank.`);
       process.exit(1);
@@ -181,6 +239,8 @@ async function main() {
         position: i,
         question: q.question,
         options: q.options,
+        statements: q.statements ?? [],
+        type: q.type ?? 'single',
         updated_at: now,
       }))
     );
@@ -195,11 +255,18 @@ async function main() {
       }))
     );
 
-    const kb = readKnowledgeBase(join(ROOT, bank.knowledgebase), topicNames, bank.level);
+    const kb = readStudyModules(join(ROOT, bank.knowledgebase), topicNames, bank.level);
     allContent.push(...kb.map((m) => ({ ...m, updated_at: now })));
 
+    const shapes = questions.reduce((acc, q) => {
+      acc[q.type] = (acc[q.type] ?? 0) + 1;
+      return acc;
+    }, {});
+
     console.log(
-      `- ${bank.level}: ${questions.length} questions, ${topicNames.length} topics, ${kb.length} study guides`
+      `- ${bank.level}: ${questions.length} questions ` +
+        `(${Object.entries(shapes).map(([k, v]) => `${v} ${k}`).join(', ')}), ` +
+        `${topicNames.length} topics, ${kb.length} study guides`
     );
   }
 
@@ -257,8 +324,15 @@ async function main() {
 
   if (allContent.length) {
     await step(
-      `topic_content (${allContent.length})`,
-      supabase.from('topic_content').upsert(allContent, { onConflict: 'topic_slug' })
+      `study_modules (${allContent.length})`,
+      supabase.from('study_modules').upsert(allContent, { onConflict: 'slug' })
+    );
+    await step(
+      'prune removed study modules',
+      supabase
+        .from('study_modules')
+        .delete()
+        .not('slug', 'in', `(${allContent.map((m) => m.slug).join(',')})`)
     );
   }
 

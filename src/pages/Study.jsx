@@ -2,13 +2,15 @@ import { useEffect, useMemo, useState } from 'react';
 
 import Spinner from '../components/Spinner.jsx';
 import { renderMarkdown } from '../lib/markdown';
-import { fetchTopicContent, fetchTopics } from '../lib/questionBank';
+import { fetchStudyModules } from '../lib/questionBank';
 import { isSupabaseConfigured } from '../lib/supabase';
 
 /**
  * The knowledge base, read from Supabase.
  *
- * topic_content is readable by any signed-in account.
+ * Study modules are a different cut from exam topics: a module feeds several
+ * topics and a topic draws on several modules, so each guide lists the topics it
+ * covers rather than belonging to one.
  */
 export default function Study() {
   const [modules, setModules] = useState([]);
@@ -25,23 +27,20 @@ export default function Study() {
 
     (async () => {
       try {
-        const [topics, content] = await Promise.all([fetchTopics(), fetchTopicContent()]);
+        const rows = await fetchStudyModules();
         if (!active) return;
 
-        // Only modules with study material are worth listing.
-        const merged = topics
-          .filter((t) => content.has(t.slug))
-          .map((t) => ({
-            slug: t.slug,
-            topic: t.name,
-            level: t.level,
-            questionCount: t.question_count ?? 0,
-            file: content.get(t.slug).file,
-            content: content.get(t.slug).content,
-          }));
-
-        setModules(merged);
-        setActiveSlug((prev) => prev ?? merged[0]?.slug ?? null);
+        setModules(
+          rows.map((m) => ({
+            slug: m.slug,
+            topic: m.title,
+            level: m.level,
+            topics: m.topics ?? [],
+            file: m.file,
+            content: m.content,
+          }))
+        );
+        setActiveSlug((prev) => prev ?? rows[0]?.slug ?? null);
       } catch {
         // Falls through to the empty state below.
       } finally {
@@ -91,7 +90,7 @@ export default function Study() {
           <ul className="space-y-1.5">
             {modules.map((mod) => {
               const isActive = mod.slug === active.slug;
-              const count = mod.questionCount;
+              const count = mod.topics.length;
 
               return (
                 <li key={mod.slug}>
@@ -116,7 +115,9 @@ export default function Study() {
                       {mod.topic}
                     </span>
                     <span className="mt-0.5 block text-xs text-ink-500">
-                      {count} exam question{count === 1 ? '' : 's'}
+                      {count === 0
+                        ? 'Reference material'
+                        : `Covers ${count} exam topic${count === 1 ? '' : 's'}`}
                     </span>
                   </button>
                 </li>
@@ -132,7 +133,19 @@ export default function Study() {
               Module
             </span>
             <h2 className="mt-3 text-2xl font-bold tracking-tight text-ink-900">{active.topic}</h2>
-            <p className="mt-1 font-mono text-xs text-ink-500">{active.file}</p>
+            {active.topics.length > 0 && (
+              <div className="mt-3 flex flex-wrap gap-2">
+                {active.topics.map((t) => (
+                  <span
+                    key={t}
+                    className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-ink-700"
+                  >
+                    {t}
+                  </span>
+                ))}
+              </div>
+            )}
+            <p className="mt-3 font-mono text-xs text-ink-500">{active.file}</p>
           </div>
 
           {/* Seeded markdown from topic_content, escaped by renderMarkdown(). */}

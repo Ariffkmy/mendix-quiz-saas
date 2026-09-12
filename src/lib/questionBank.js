@@ -88,7 +88,7 @@ export async function fetchQuestions(level) {
   // !inner so the level filter applies to the join rather than nulling it out.
   let query = requireSupabase()
     .from('questions')
-    .select('id, position, question, options, topic_slug, topics!inner ( name, level )')
+    .select('id, position, question, options, statements, type, topic_slug, topics!inner ( name, level )')
     .order('position', { ascending: true });
 
   if (level) query = query.eq('topics.level', level);
@@ -102,6 +102,8 @@ export async function fetchQuestions(level) {
     level: row.topics?.level ?? null,
     question: row.question,
     options: row.options ?? [],
+    statements: row.statements ?? [],
+    type: row.type ?? 'single',
   }));
 }
 
@@ -141,17 +143,26 @@ export function withAnswerKeys(questions, keys) {
   });
 }
 
-/** Knowledge-base markdown for every module. */
-export async function fetchTopicContent() {
-  const { data, error } = await requireSupabase()
-    .from('topic_content')
-    .select('topic_slug, file, content');
+/**
+ * Knowledge-base guides.
+ *
+ * These are a different cut from exam topics — a module feeds several topics and
+ * a topic draws on several modules — so they are fetched in their own right
+ * rather than hanging off a topic.
+ *
+ * @param {string} [level] restrict to one certification level
+ */
+export async function fetchStudyModules(level) {
+  let query = requireSupabase()
+    .from('study_modules')
+    .select('slug, level, title, file, content, topics, position')
+    .order('position', { ascending: true });
 
+  if (level) query = query.eq('level', level);
+
+  const { data, error } = await query;
   if (error) throw new Error(error.message);
-
-  const bySlug = new Map();
-  for (const row of data ?? []) bySlug.set(row.topic_slug, row);
-  return bySlug;
+  return data ?? [];
 }
 
 /**

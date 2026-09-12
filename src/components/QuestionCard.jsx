@@ -1,11 +1,20 @@
-import { LETTERS } from '../data/questions';
+import { LETTERS, NUMERALS, QUESTION_TYPES } from '../lib/parseQuestions';
+
+const TYPE_LABEL = {
+  [QUESTION_TYPES.trueFalse]: 'True / False',
+  [QUESTION_TYPES.roman]: 'Select the correct combination',
+};
 
 /**
- * A single exam question with its four options.
+ * A single exam question.
+ *
+ * Three shapes share this component: ordinary multiple choice, true/false, and
+ * the "roman" format that lists numbered statements and asks which combination
+ * holds. The number of options is whatever the question carries — two for
+ * true/false — rather than always four.
  *
  * In `review` mode the correct answer and explanation are shown and the options
- * become read-only — the same component backs both the exam and the results
- * review, so an answer always looks the way it did during the exam.
+ * become read-only, so an answer always looks the way it did during the exam.
  */
 export default function QuestionCard({
   question,
@@ -16,6 +25,10 @@ export default function QuestionCard({
   review = false,
 }) {
   const isCorrect = selected === question.answer;
+  const options = question.options ?? [];
+  const letters = LETTERS.slice(0, options.length);
+  const statements = question.statements ?? [];
+  const typeLabel = TYPE_LABEL[question.type];
 
   return (
     <article className="card p-6 sm:p-8">
@@ -26,6 +39,11 @@ export default function QuestionCard({
         <span className="text-xs font-medium text-ink-500">
           Question {index + 1} of {total}
         </span>
+        {typeLabel && (
+          <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-ink-600">
+            {typeLabel}
+          </span>
+        )}
         {review && (
           <span
             className={`ml-auto rounded-full px-3 py-1 text-xs font-semibold ${
@@ -41,9 +59,23 @@ export default function QuestionCard({
         {question.question}
       </h2>
 
+      {/* Roman-format questions list the statements the options refer to. */}
+      {statements.length > 0 && (
+        <ol className="mt-5 space-y-2.5 rounded-xl border border-slate-200 bg-slate-50 p-4">
+          {statements.map((statement, i) => (
+            <li key={statement} className="flex items-start gap-3 text-sm leading-relaxed">
+              <span className="mt-0.5 w-8 flex-none font-mono font-bold text-ink-500">
+                {NUMERALS[i]}.
+              </span>
+              <span className="text-ink-900">{statement}</span>
+            </li>
+          ))}
+        </ol>
+      )}
+
       <div className="mt-6 space-y-3" role={review ? 'list' : 'radiogroup'}>
-        {question.options.map((option, i) => {
-          const letter = LETTERS[i];
+        {options.map((option, i) => {
+          const letter = letters[i];
           const isSelected = selected === letter;
           const isAnswer = question.answer === letter;
 
