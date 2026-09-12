@@ -1,7 +1,17 @@
+import { useEffect, useRef, useState } from 'react';
 import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 
 import { PRODUCT } from '../config';
 import { useAuth } from '../context/AuthContext.jsx';
+
+// The policy pages, in the order they are linked everywhere on the site.
+const LEGAL_LINKS = [
+  { to: '/terms', label: 'Terms of Service', short: 'Terms' },
+  { to: '/privacy', label: 'Privacy Policy', short: 'Privacy' },
+  { to: '/refunds', label: 'Refund Policy', short: 'Refunds' },
+  { to: '/disclaimer', label: 'Disclaimer', short: 'Disclaimer' },
+  { to: '/contact', label: 'Contact', short: 'Contact' },
+];
 
 function Logo() {
   return (
@@ -28,6 +38,94 @@ function TierPill({ tier }) {
     >
       {paid ? 'Full' : 'Free'}
     </span>
+  );
+}
+
+/**
+ * Legal menu in the header.
+ *
+ * Five policy links would swamp a nav that is already carrying the sign-up
+ * path, so they collapse behind one button. Built as a real menu rather than a
+ * hover card: it has to work on touch, close on Escape and on an outside click,
+ * and return focus to the button afterwards.
+ */
+function LegalMenu() {
+  const [open, setOpen] = useState(false);
+  const containerRef = useRef(null);
+  const buttonRef = useRef(null);
+  const { pathname } = useLocation();
+
+  // A navigation is a decision — the menu has done its job and should close.
+  useEffect(() => setOpen(false), [pathname]);
+
+  useEffect(() => {
+    if (!open) return undefined;
+
+    const handlePointerDown = (e) => {
+      if (!containerRef.current?.contains(e.target)) setOpen(false);
+    };
+    const handleKeyDown = (e) => {
+      if (e.key !== 'Escape') return;
+      setOpen(false);
+      // Escape must not leave focus stranded on a hidden element.
+      buttonRef.current?.focus();
+    };
+
+    document.addEventListener('pointerdown', handlePointerDown);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('pointerdown', handlePointerDown);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [open]);
+
+  const onLegalPage = LEGAL_LINKS.some((link) => link.to === pathname);
+
+  return (
+    <div ref={containerRef} className="relative">
+      <button
+        ref={buttonRef}
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+        aria-haspopup="true"
+        className={`flex items-center gap-1 rounded-lg px-3 py-2 text-sm font-medium transition ${
+          onLegalPage ? 'bg-brand-50 text-brand-700' : 'text-ink-700 hover:bg-slate-100'
+        }`}
+      >
+        Legal
+        <svg
+          className={`h-3.5 w-3.5 transition-transform ${open ? 'rotate-180' : ''}`}
+          viewBox="0 0 20 20"
+          fill="currentColor"
+          aria-hidden="true"
+        >
+          <path
+            fillRule="evenodd"
+            d="M5.3 7.3a1 1 0 0 1 1.4 0L10 10.58l3.3-3.3a1 1 0 1 1 1.4 1.42l-4 4a1 1 0 0 1-1.4 0l-4-4a1 1 0 0 1 0-1.42Z"
+            clipRule="evenodd"
+          />
+        </svg>
+      </button>
+
+      {open && (
+        <div className="absolute right-0 z-50 mt-2 w-52 overflow-hidden rounded-xl border border-slate-200 bg-white py-1.5 shadow-xl">
+          {LEGAL_LINKS.map((link) => (
+            <NavLink
+              key={link.to}
+              to={link.to}
+              className={({ isActive }) =>
+                `block px-4 py-2 text-sm transition ${
+                  isActive ? 'bg-brand-50 font-medium text-brand-700' : 'text-ink-700 hover:bg-slate-50'
+                }`
+              }
+            >
+              {link.label}
+            </NavLink>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -88,6 +186,13 @@ function Header() {
               </NavLink>
             )}
 
+            {/* Hidden on the narrowest screens, where the sign-up buttons
+                already fill the bar — the footer carries the same links on
+                every page, so nothing becomes unreachable. */}
+            <div className="hidden sm:block">
+              <LegalMenu />
+            </div>
+
             {user ? (
               <div className="ml-2 flex items-center gap-2">
                 <TierPill tier={tier} />
@@ -126,16 +231,6 @@ function Header() {
   );
 }
 
-// Consumer law expects the policy pages to be reachable from anywhere on the
-// site, not just from the marketing footer, so they live in the shared one too.
-const LEGAL_LINKS = [
-  { to: '/terms', label: 'Terms' },
-  { to: '/privacy', label: 'Privacy' },
-  { to: '/refunds', label: 'Refunds' },
-  { to: '/disclaimer', label: 'Disclaimer' },
-  { to: '/contact', label: 'Contact' },
-];
-
 function Footer() {
   return (
     <footer className="mt-auto border-t border-slate-200 bg-white">
@@ -153,7 +248,7 @@ function Footer() {
         <nav aria-label="Legal" className="flex flex-wrap gap-x-5 gap-y-2">
           {LEGAL_LINKS.map((link) => (
             <Link key={link.to} to={link.to} className="transition hover:text-brand-600">
-              {link.label}
+              {link.short}
             </Link>
           ))}
         </nav>
