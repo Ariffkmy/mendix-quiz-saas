@@ -27,15 +27,39 @@ import { fileURLToPath } from 'node:url';
 import { parseQuestions } from '../src/lib/parseQuestions.js';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
-const QUESTIONS_MD = join(ROOT, 'src/data/questions.md');
-const KB_DIR = join(ROOT, 'src/data/knowledgebase');
 
-/** Same slug rule the old knowledgebase/index.js used, so URLs do not change. */
-const slugify = (topic) =>
+/**
+ * One bank per certification level.
+ *
+ * Mendix certifies at Intermediate and Advanced against different syllabuses,
+ * so these are separate question sets with their own modules — not a difficulty
+ * filter over one set. A bank whose questions file is missing is skipped, which
+ * is how the Intermediate level stays dormant until someone writes it.
+ */
+const BANKS = [
+  {
+    level: 'advanced',
+    questions: 'src/data/questions.md',
+    knowledgebase: 'src/data/knowledgebase',
+  },
+  {
+    level: 'intermediate',
+    questions: 'src/data/questions-intermediate.md',
+    knowledgebase: 'src/data/knowledgebase-intermediate',
+  },
+];
+
+const slugifyName = (topic) =>
   topic
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-|-$/g, '');
+
+/**
+ * Topic slugs are level-prefixed because a module name is only unique within a
+ * level — both blueprints can have an "Error Handling".
+ */
+const slugify = (topic, level) => `${level}-${slugifyName(topic)}`;
 
 /* ------------------------------- env ------------------------------------- */
 
@@ -76,32 +100,32 @@ function loadEnv() {
  * Map a knowledge-base filename to its topic name by matching against the
  * topics found in questions.md, rather than a hand-maintained lookup table.
  */
-function readKnowledgeBase(topicNames) {
-  const bySlug = new Map(topicNames.map((name) => [slugify(name), name]));
+function readKnowledgeBase(dir, topicNames, level) {
+  const bySlug = new Map(topicNames.map((name) => [slugify(name, level), name]));
   const found = [];
 
   let files = [];
   try {
-    files = readdirSync(KB_DIR).filter((f) => f.endsWith('.md'));
+    files = readdirSync(dir).filter((f) => f.endsWith('.md'));
   } catch {
-    console.warn(`! No knowledge base directory at ${KB_DIR} — skipping topic_content.`);
+    console.warn(`  ! no knowledge base directory at ${dir} — skipping topic_content`);
     return found;
   }
 
   for (const file of files) {
     const stem = file.replace(/\.md$/, '');
     // "Advanced-Domain-Model-Skills-Knowledge-Base" -> "advanced-domain-model-skills"
-    const slug = slugify(stem.replace(/-?Knowledge-?Base$/i, ''));
+    const slug = slugify(stem.replace(/-?Knowledge-?Base$/i, ''), level);
 
     if (!bySlug.has(slug)) {
-      console.warn(`! ${file} does not match any topic in questions.md (slug "${slug}") — skipped.`);
+      console.warn(`  ! ${file} matches no topic in this bank (slug "${slug}") — skipped`);
       continue;
     }
 
     found.push({
       topic_slug: slug,
       file,
-      content: readFileSync(join(KB_DIR, file), 'utf8'),
+      content: readFileSync(join(dir, file), 'utf8'),
     });
   }
 
@@ -114,70 +138,127 @@ async function main() {
   const { url, key } = loadEnv();
   const supabase = createClient(url, key, { auth: { persistSession: false } });
 
-  const questions = parseQuestions(readFileSync(QUESTIONS_MD, 'utf8'));
-  if (!questions.length) {
-    console.error('questions.md parsed to zero questions — refusing to wipe the bank.');
+  const allTopics = [];
+  const allQuestions = [];
+  const allKeys = [];
+  const allContent = [];
+
+  for (const bank of BANKS) {
+    const questionsPath = join(ROOT, bank.questions);
+
+    let markdown;
+    try {
+      markdown = readFileSync(questionsPath, 'utf8');
+    } catch {
+      console.log(`- ${bank.level}: no ${bank.questions}, skipping`);
+      continue;
+    }
+
+    const questions = parseQuestions(markdown);
+    if (!questions.length) {
+      console.error(`${bank.questions} parsed to zero questions — refusing to wipe that bank.`);
+      process.exit(1);
+    }
+
+    // Topic order follows first appearance in the markdown.
+    const topicNames = [...new Set(questions.map((q) => q.topic))];
+    const now = new Date().toISOString();
+
+    allTopics.push(
+      ...topicNames.map((name, i) => ({
+        slug: slugify(name, bank.level),
+        name,
+        level: bank.level,
+        position: i,
+        updated_at: now,
+      }))
+    );
+
+    allQuestions.push(
+      ...questions.map((q, i) => ({
+        id: q.id,
+        topic_slug: slugify(q.topic, bank.level),
+        position: i,
+        question: q.question,
+        options: q.options,
+        updated_at: now,
+      }))
+    );
+
+    allKeys.push(
+      ...questions.map((q) => ({
+        question_id: q.id,
+        answer: q.answer,
+        explanation: q.src ?? '',
+        tip: q.tip ?? '',
+        updated_at: now,
+      }))
+    );
+
+    const kb = readKnowledgeBase(join(ROOT, bank.knowledgebase), topicNames, bank.level);
+    allContent.push(...kb.map((m) => ({ ...m, updated_at: now })));
+
+    console.log(
+      `- ${bank.level}: ${questions.length} questions, ${topicNames.length} topics, ${kb.length} study guides`
+    );
+  }
+
+  if (!allQuestions.length) {
+    console.error('No banks found. Expected at least src/data/questions.md.');
     process.exit(1);
   }
 
-  // Topic order follows first appearance in the markdown, matching how the old
-  // TOPICS constant was derived.
-  const topicNames = [...new Set(questions.map((q) => q.topic))];
-  const topics = topicNames.map((name, i) => ({ slug: slugify(name), name, position: i }));
-  const slugByTopic = new Map(topics.map((t) => [t.name, t.slug]));
-
-  const questionRows = questions.map((q, i) => ({
-    id: q.id,
-    topic_slug: slugByTopic.get(q.topic),
-    position: i,
-    question: q.question,
-    options: q.options,
-    updated_at: new Date().toISOString(),
-  }));
-
-  const keyRows = questions.map((q) => ({
-    question_id: q.id,
-    answer: q.answer,
-    explanation: q.src ?? '',
-    tip: q.tip ?? '',
-    updated_at: new Date().toISOString(),
-  }));
-
-  const kb = readKnowledgeBase(topicNames);
+  // Question ids are the primary key and are not namespaced by level, so a
+  // collision between banks would silently overwrite rather than add.
+  const dupes = allQuestions.map((q) => q.id).filter((id, i, a) => a.indexOf(id) !== i);
+  if (dupes.length) {
+    console.error(`Duplicate question ids across banks: ${[...new Set(dupes)].join(', ')}`);
+    process.exit(1);
+  }
 
   const step = async (label, promise) => {
     const { error } = await promise;
     if (error) {
-      console.error(`✗ ${label}: ${error.message}`);
+      console.error(`\u2717 ${label}: ${error.message}`);
       process.exit(1);
     }
-    console.log(`✓ ${label}`);
+    console.log(`\u2713 ${label}`);
   };
+
+  console.log('');
+
+  // Prune first. Topics carry a unique (level, name), so a renamed slug would
+  // collide with the row it is replacing if the old one were still present —
+  // and deleting a topic cascades to its questions, which are re-inserted
+  // immediately below. A seed that fails between these steps leaves the bank
+  // short, so re-run it rather than leaving it half-applied.
+  await step(
+    'prune removed topics',
+    supabase
+      .from('topics')
+      .delete()
+      .not('slug', 'in', `(${allTopics.map((t) => t.slug).join(',')})`)
+  );
 
   // Order matters: topics own the foreign keys, and question_keys hangs off
   // questions.
   await step(
-    `topics (${topics.length})`,
-    supabase.from('topics').upsert(topics, { onConflict: 'slug' })
+    `topics (${allTopics.length})`,
+    supabase.from('topics').upsert(allTopics, { onConflict: 'slug' })
   );
   await step(
-    `questions (${questionRows.length})`,
-    supabase.from('questions').upsert(questionRows, { onConflict: 'id' })
+    `questions (${allQuestions.length})`,
+    supabase.from('questions').upsert(allQuestions, { onConflict: 'id' })
   );
   await step(
-    `question_keys (${keyRows.length})`,
-    supabase.from('question_keys').upsert(keyRows, { onConflict: 'question_id' })
+    `question_keys (${allKeys.length})`,
+    supabase.from('question_keys').upsert(allKeys, { onConflict: 'question_id' })
   );
 
-  if (kb.length) {
+  if (allContent.length) {
     await step(
-      `topic_content (${kb.length})`,
-      supabase
-        .from('topic_content')
-        .upsert(
-          kb.map((m) => ({ ...m, updated_at: new Date().toISOString() })),
-          { onConflict: 'topic_slug' }
-        )
+      `topic_content (${allContent.length})`,
+      supabase.from('topic_content').upsert(allContent, { onConflict: 'topic_slug' })
     );
   }
 
@@ -185,15 +266,14 @@ async function main() {
   // of the files rather than an accumulation of every question ever written.
   await step(
     'prune removed questions',
-    supabase.from('questions').delete().not('id', 'in', `(${questions.map((q) => q.id).join(',')})`)
-  );
-  await step(
-    'prune removed topics',
-    supabase.from('topics').delete().not('slug', 'in', `(${topics.map((t) => t.slug).join(',')})`)
+    supabase
+      .from('questions')
+      .delete()
+      .not('id', 'in', `(${allQuestions.map((q) => q.id).join(',')})`)
   );
 
   const { count } = await supabase.from('questions').select('id', { count: 'exact', head: true });
-  console.log(`\nSeeded ${count} questions across ${topics.length} topics.`);
+  console.log(`\nSeeded ${count} questions across ${allTopics.length} topics.`);
 }
 
 main().catch((err) => {

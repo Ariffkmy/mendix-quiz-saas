@@ -63,6 +63,9 @@ export function loadInProgress() {
     flagged: Array.isArray(saved.flagged) ? saved.flagged : [],
     questionIds: saved.questionIds,
     timeLimitMinutes: saved.timeLimitMinutes ?? null,
+    // Needed to reload the right bank on resume — the paper's ids mean nothing
+    // against the wrong level's questions.
+    level: saved.level ?? null,
   };
 }
 

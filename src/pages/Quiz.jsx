@@ -15,7 +15,7 @@ import {
   saveInProgress,
   saveLastResult,
 } from '../lib/attemptStorage';
-import { fetchQuestions, submitAttempt } from '../lib/questionBank';
+import { fetchLevels, fetchQuestions, submitAttempt } from '../lib/questionBank';
 import { isSupabaseConfigured } from '../lib/supabase';
 import Spinner from '../components/Spinner.jsx';
 
@@ -34,6 +34,11 @@ export default function Quiz() {
   // Chosen on the briefing screen; only read when starting.
   const [length, setLength] = useState(LENGTH_PRESETS[0].value);
   const [timePreset, setTimePreset] = useState(TIME_PRESETS[0].value);
+  // Only levels that actually have questions seeded, so the selector never
+  // offers an empty exam.
+  const [levels, setLevels] = useState([]);
+  // Resuming an exam must reload the bank it was drawn from, not the default.
+  const [level, setLevel] = useState(() => loadInProgress()?.level ?? null);
   const [current, setCurrent] = useState(0);
   const [confirming, setConfirming] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -63,20 +68,44 @@ export default function Quiz() {
   const plannedCount = length ?? questions.length;
   const plannedMinutes = resolveTimeLimit(timePreset, plannedCount);
 
-  // Load the paper once per session.
+  // Discover which levels have content, and default to the hardest available —
+  // this started life as an Advanced-only simulator.
+  useEffect(() => {
+    if (!isSupabaseConfigured) return;
+
+    let active = true;
+
+    fetchLevels()
+      .then((rows) => {
+        if (!active) return;
+        setLevels(rows);
+        setLevel((prev) => prev ?? rows[rows.length - 1]?.level ?? null);
+        if (!rows.length) setBankError('The question bank is empty. Run the seed script.');
+      })
+      .catch((err) => active && setBankError(err.message));
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  // Load the chosen level's questions. Refetches when the level changes, which
+  // is only possible from the briefing screen.
   useEffect(() => {
     if (!isSupabaseConfigured) {
       setBankLoading(false);
       return;
     }
+    if (!level) return;
 
     let active = true;
+    setBankLoading(true);
 
-    fetchQuestions()
+    fetchQuestions(level)
       .then((rows) => {
         if (!active) return;
         setQuestions(rows);
-        if (!rows.length) setBankError('The question bank is empty. Run the seed script.');
+        if (!rows.length) setBankError('No questions for this level yet.');
       })
       .catch((err) => active && setBankError(err.message))
       .finally(() => active && setBankLoading(false));
@@ -84,7 +113,7 @@ export default function Quiz() {
     return () => {
       active = false;
     };
-  }, []);
+  }, [level]);
 
   // Mirror every change to localStorage so a refresh mid-exam loses nothing.
   useEffect(() => {
@@ -104,6 +133,7 @@ export default function Quiz() {
       deadline: minutes == null ? null : now + minutes * 60 * 1000,
       questionIds: chosen.map((q) => q.id),
       timeLimitMinutes: minutes,
+      level,
     });
     setCurrent(0);
     submittedRef.current = false;
@@ -296,7 +326,45 @@ export default function Quiz() {
             every module either way.
           </p>
 
-          <fieldset className="mt-6">
+          <div className="mt-6 space-y-6">
+
+          {/* Only worth showing once more than one blueprint is seeded. */}
+          {levels.length > 1 && (
+            <fieldset>
+              <legend className="text-sm font-medium text-ink-700">Certification level</legend>
+              <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                {levels.map((lvl) => {
+                  const active = level === lvl.level;
+                  return (
+                    <button
+                      key={lvl.level}
+                      type="button"
+                      onClick={() => setLevel(lvl.level)}
+                      aria-pressed={active}
+                      className={`rounded-xl border p-3.5 text-left transition ${
+                        active
+                          ? 'border-brand-600 bg-brand-50'
+                          : 'border-slate-200 bg-white hover:border-brand-300 hover:bg-slate-50'
+                      }`}
+                    >
+                      <span
+                        className={`block text-sm font-semibold ${
+                          active ? 'text-brand-800' : 'text-ink-900'
+                        }`}
+                      >
+                        {lvl.label}
+                      </span>
+                      <span className="mt-0.5 block text-xs text-ink-500">
+                        {lvl.questionCount} questions · {lvl.topicCount} modules
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </fieldset>
+          )}
+
+          <fieldset>
             <legend className="text-sm font-medium text-ink-700">Length</legend>
             <div className="mt-3 grid gap-2 sm:grid-cols-4">
               {LENGTH_PRESETS.map((preset) => {
@@ -330,7 +398,7 @@ export default function Quiz() {
             </div>
           </fieldset>
 
-          <fieldset className="mt-6">
+          <fieldset>
             <legend className="text-sm font-medium text-ink-700">Time limit</legend>
             <div className="mt-3 grid gap-2 sm:grid-cols-5">
               {TIME_PRESETS.map((preset) => {
@@ -365,6 +433,7 @@ export default function Quiz() {
               })}
             </div>
           </fieldset>
+          </div>
         </div>
 
         <div className="card mt-6 p-6">

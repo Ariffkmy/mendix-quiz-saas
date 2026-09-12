@@ -34,6 +34,7 @@ export default function Study() {
           .map((t) => ({
             slug: t.slug,
             topic: t.name,
+            level: t.level,
             questionCount: t.question_count ?? 0,
             file: content.get(t.slug).file,
             content: content.get(t.slug).content,

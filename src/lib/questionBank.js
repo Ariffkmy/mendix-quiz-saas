@@ -15,15 +15,66 @@
 
 import { requireSupabase, supabase } from './supabase';
 
-/** Module list with question counts. Readable without a session. */
-export async function fetchTopics() {
-  const { data, error } = await requireSupabase()
+/**
+ * Human labels for the certification levels.
+ *
+ * Mendix certifies at Intermediate and Advanced against different syllabuses,
+ * so a level is a separate set of modules rather than a difficulty setting.
+ */
+export const LEVELS = {
+  intermediate: { label: 'Intermediate', blurb: 'Mendix Intermediate Developer blueprint' },
+  advanced: { label: 'Advanced', blurb: 'Mendix Advanced Developer blueprint' },
+};
+
+/** Level order, easiest first. */
+export const LEVEL_ORDER = ['intermediate', 'advanced'];
+
+/**
+ * Module list with question counts. Readable without a session.
+ * @param {string} [level] restrict to one certification level
+ */
+export async function fetchTopics(level) {
+  let query = requireSupabase()
     .from('topics')
-    .select('slug, name, position, question_count')
+    .select('slug, name, level, position, question_count')
     .order('position', { ascending: true });
 
+  if (level) query = query.eq('level', level);
+
+  const { data, error } = await query;
   if (error) throw new Error(error.message);
   return data ?? [];
+}
+
+/**
+ * Which levels actually have questions, in order.
+ *
+ * The selector is built from this rather than from LEVELS, so a level with no
+ * content seeded yet simply does not appear — better than offering an exam that
+ * turns out to be empty.
+ *
+ * @returns {Promise<Array<{ level: string, label: string, blurb: string,
+ *   questionCount: number, topicCount: number }>>}
+ */
+export async function fetchLevels() {
+  const topics = await fetchTopics();
+  const byLevel = new Map();
+
+  for (const t of topics) {
+    const entry = byLevel.get(t.level) ?? { questionCount: 0, topicCount: 0 };
+    entry.questionCount += t.question_count ?? 0;
+    entry.topicCount += 1;
+    byLevel.set(t.level, entry);
+  }
+
+  return LEVEL_ORDER.filter((level) => (byLevel.get(level)?.questionCount ?? 0) > 0).map(
+    (level) => ({
+      level,
+      label: LEVELS[level]?.label ?? level,
+      blurb: LEVELS[level]?.blurb ?? '',
+      ...byLevel.get(level),
+    })
+  );
 }
 
 /**
@@ -33,17 +84,22 @@ export async function fetchTopics() {
  * options }` — with `topic` as the display name rather than the slug, so
  * QuestionCard and the topic breakdown keep working unchanged.
  */
-export async function fetchQuestions() {
-  const { data, error } = await requireSupabase()
+export async function fetchQuestions(level) {
+  // !inner so the level filter applies to the join rather than nulling it out.
+  let query = requireSupabase()
     .from('questions')
-    .select('id, position, question, options, topic_slug, topics ( name )')
+    .select('id, position, question, options, topic_slug, topics!inner ( name, level )')
     .order('position', { ascending: true });
 
+  if (level) query = query.eq('topics.level', level);
+
+  const { data, error } = await query;
   if (error) throw new Error(error.message);
 
   return (data ?? []).map((row) => ({
     id: row.id,
     topic: row.topics?.name ?? row.topic_slug,
+    level: row.topics?.level ?? null,
     question: row.question,
     options: row.options ?? [],
   }));
