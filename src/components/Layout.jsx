@@ -227,9 +227,9 @@ function Header() {
   const navigate = useNavigate();
   const { pathname } = useLocation();
 
-  // The exam screen gets a stripped-down header so nothing competes with the
-  // question being read.
-  const examMode = pathname === '/quiz';
+  // The exam and quick-quiz screens get a stripped-down header so nothing
+  // competes with the question being read.
+  const focusedMode = pathname === '/quiz' ? 'Exam in progress' : pathname === '/quick' ? 'Quick quiz' : null;
 
   const handleSignOut = async () => {
     await signOut();
@@ -243,6 +243,7 @@ function Header() {
       ? [
           { to: '/dashboard', label: 'Dashboard' },
           { to: '/quiz', label: 'Exam' },
+          { to: '/quick', label: 'Quick quiz' },
           { to: '/study', label: 'Study' },
           { to: '/results', label: 'Results' },
         ]
@@ -260,9 +261,9 @@ function Header() {
       <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-4 px-4 sm:px-6">
         <Logo />
 
-        {examMode ? (
+        {focusedMode ? (
           <span className="rounded-full bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-700">
-            Exam in progress
+            {focusedMode}
           </span>
         ) : (
           <>

@@ -23,6 +23,9 @@ export default function QuestionCard({
   selected,
   onSelect,
   review = false,
+  // Quick-quiz has no fixed paper, so it passes its own label instead of the
+  // "Question x of y" counter the exam uses.
+  progressLabel = null,
 }) {
   const isCorrect = selected === question.answer;
   const options = question.options ?? [];
@@ -37,7 +40,7 @@ export default function QuestionCard({
           {question.topic}
         </span>
         <span className="text-xs font-medium text-ink-500">
-          Question {index + 1} of {total}
+          {progressLabel ?? `Question ${index + 1} of ${total}`}
         </span>
         {typeLabel && (
           <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-ink-600">

@@ -146,6 +146,9 @@ function AttemptsOverview({ attempts, error }) {
           <Link to="/quiz" className="btn-primary px-6 py-3 text-base">
             Start new exam
           </Link>
+          <Link to="/quick" className="btn-secondary px-6 py-3 text-base">
+            Quick quiz
+          </Link>
           {stats && (
             <Link to="/results" className="btn-secondary px-6 py-3 text-base">
               Latest results
@@ -162,9 +165,14 @@ function AttemptsOverview({ attempts, error }) {
             Your analytics fill in as soon as you submit your first exam — score trend, pass rate and
             a breakdown of every module.
           </p>
-          <Link to="/quiz" className="btn-primary mt-7">
-            Start your first exam
-          </Link>
+          <div className="mt-7 flex flex-wrap justify-center gap-3">
+            <Link to="/quiz" className="btn-primary">
+              Start your first exam
+            </Link>
+            <Link to="/quick" className="btn-secondary">
+              Try quick quiz
+            </Link>
+          </div>
         </div>
       ) : (
         <>

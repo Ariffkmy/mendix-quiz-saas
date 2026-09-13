@@ -9,6 +9,7 @@ import Landing from './pages/Landing.jsx';
 import Login from './pages/Login.jsx';
 import NotFound from './pages/NotFound.jsx';
 import Quiz from './pages/Quiz.jsx';
+import QuickQuiz from './pages/QuickQuiz.jsx';
 import Register from './pages/Register.jsx';
 import Results from './pages/Results.jsx';
 
@@ -89,6 +90,15 @@ export default function App() {
           element={
             <ProtectedRoute>
               <Quiz />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/quick"
+          element={
+            <ProtectedRoute>
+              <QuickQuiz />
             </ProtectedRoute>
           }
         />
