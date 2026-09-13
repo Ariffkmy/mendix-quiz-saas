@@ -6,6 +6,7 @@ import QuestionCard from '../components/QuestionCard.jsx';
 import Spinner from '../components/Spinner.jsx';
 import TopicBar from '../components/TopicBar.jsx';
 import { PASS_THRESHOLD } from '../data/questions';
+import { burstConfetti } from '../lib/confetti';
 import { LETTERS } from '../lib/parseQuestions';
 import { gradeAttempt } from '../lib/scoring';
 import {
@@ -142,6 +143,8 @@ export default function QuickQuiz() {
   const selectAnswer = (letter) => {
     if (!question || answers[question.id]) return;
     setAnswers((prev) => ({ ...prev, [question.id]: letter }));
+    // A little celebration the instant a right answer lands.
+    if (letter === question.answer) burstConfetti();
   };
 
   const finish = useCallback(() => {
